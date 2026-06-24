@@ -1,0 +1,37 @@
+-------------------------------------------------------------------------------
+-- Point Module --
+-- Represents a point and its track section/segment.
+--      Track related variables are like in LinearSection mostly might
+--      want to change this similar to Vu et al, to use 3 variables for
+--      occupancy instead of 2 (require lots of other changes though).
+-- Inputs:- id_in: frozen var, ID of this point, number in range 0..29
+--          segID_in: frozen var, ID of the segment of the point,
+--                        number in range 0..29
+--          CMD_in: command for the aspect/position of the point,
+--                        enum values "NORMAL" and "REVERSE"
+-------------------------------------------------------------------------------
+MODULE Point(id_in, segID_in, CMD_in)
+FROZENVAR
+	id : 0..29;
+	segID : 0..29;
+VAR
+	occSNR : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	occNS : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	occRS : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	ACT : {NORMAL, INTERMEDIATE, REVERSE};
+	mode : {AVAILABLE, EXLOCKED, USED};
+	prev : {PENDING, RELEASED};
+ASSIGN
+	init(id) := id_in;
+	init(segID) := segID_in;
+	init(ACT) := NORMAL;
+	init(mode) := AVAILABLE;
+	init(prev) := PENDING;
+
+	next(ACT) := case
+		ACT != CMD_in & ACT != INTERMEDIATE : INTERMEDIATE;
+		-- if in INTERMEDIATE, change to CMD_in next
+		ACT = INTERMEDIATE : CMD_in;
+		TRUE : ACT;
+	esac;
+-------------------------------------------------------------------------------

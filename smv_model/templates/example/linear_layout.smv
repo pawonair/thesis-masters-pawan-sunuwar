@@ -1,0 +1,1695 @@
+-- prototyping1.smv
+-- SMV representation of railway network with train movement.
+
+-- IMPORTANT NOTE:
+-- trying to verify this with nuXmv and "go", "check_property", will often work, but 
+-- depending on how the next-functions for signalCMDs and pointCMDs are defined,
+-- it can take really long for the LTL properties.
+-- There are some options to deal with this.
+-- 1st: Trigger an internal variable reordering (once), after the "model is built" (i.e., after running "go").
+--      Then continue with "check_property" as usual. The forced one-time variable reordering after "go" is 
+--      recommended as a "good point to invoke dynamic ordering explicitly" by the nuXmv manual (version 2.1.0, pg 103).
+--      The exact ordering method to be used seems to not make a big difference, "sift" works well.
+--      So, after starting nuXmv on the commandline with "nuXmv -int prototyping1.smv", 
+--      run "go", then "dynamic_var_ordering -f sift", then "check_property".
+-- 2nd: Use ic3 for LTL verification (slower than 1st strat but also works). To do this, 
+--      after starting nuXmv on the commandline with "nuXmv -int prototyping1.smv", 
+--      run "go", then "go_bmc", then "check_invar" (checking invariant props with default strategy),
+--      then "check_ltlspec_ic3". If the verification result says "inconclusive", one might need to increase the bound k,
+--      i.e., run "check_ltlspec_ic3 -k 100", where the number after -k is the bound.
+
+-- Another Note:
+-- the ranges for the ID numbers (0..25, 0..50, etc.) might need to be adjusted
+-- if a larger railway network is to be encoded.
+
+
+-- inputs:
+-- - signalID_in: frozen var, ID of this signal, number in range 0..25
+-- - aspectCMD_in: command for the aspect of the signal
+-- - direction_in: constant or frozen var, either "down" or "up"
+-- - prevSegID_in: ID of the segment that comes before the signal (in terms of signal direction), number in range 0..50
+-- - postSegID_in: ID of the segment that comes after the signal (in terms of signal direction), number in range 0..50
+MODULE Signal(signalID_in, aspectCMD_in, direction_in, prevSegID_in, postSegID_in)
+FROZENVAR
+	direction : {down, up};
+	signalID : 0..25;
+	prevSegID : 0..50;
+	postSegID : 0..50;
+VAR
+	aspectActual : {go, stop};
+ASSIGN
+	-- frozen VARs
+	init(direction) := direction_in;
+	init(signalID) := signalID_in;
+	init(prevSegID) := prevSegID_in;
+	init(postSegID) := postSegID_in;
+	
+	-- normal VARs
+	init(aspectActual) := stop;
+	next(aspectActual) := aspectCMD_in;
+
+
+
+
+-- Represents a linear section of track, for the SWTbahn this is probably equiv to a segment.
+-- inputs: 
+-- - segmentID_in: ID of this segment, number in range 0..50
+MODULE LinearSection(segmentID_in)
+FROZENVAR
+	segmentID : 0..50;
+VAR
+	-- simplified: train has head and tail, and can occupy either:
+	--    - exactly 1 section (completeTrainOcc), or
+	--    - exactly 2 sections, one has the head, the other has the tail.
+	-- In the real world, train could be longer, but if it drives slowly, most trains will act
+	-- very similar to what we can model with this.
+	occDown : {free, headOcc, completeTrainOcc, tailOcc, errorOcc};
+	occUp : {free, headOcc, completeTrainOcc, tailOcc, errorOcc};
+	
+	-- Here one could now add more VARs, e.g., the equivalent of Vu et al.'s model, 
+	-- which has "prevElemReleased" and "lockMode".
+
+ASSIGN
+	-- frozen VARs
+	init(segmentID) := segmentID_in;
+
+	-- normal VARs
+	-- The occDown and occUp is not set here, because it requires knowledge of neighbouring segments.
+	-- And we need to set the train's initial location(s), which would be difficult to do here.
+	-- -> all done in a common module.
+
+
+
+	
+	
+-- Represents a point and its track section/segment.
+-- -> track related variables are like in LinearSection mostly
+-- -> might want to change this similar to Vu et al, to use 3 variables for occupancy instead of 2.
+--    -> this would require lots of other changes though.
+-- inputs: 
+-- - pointID_in: frozen var, ID of this point, number in range 0..25
+-- - segmentID_in: frozen var, ID of the segment of the point, number in range 0..50
+-- - aspectCMD_in: command for the aspect/position of the point, enum values "normal" and "reverse"
+MODULE Point(pointID_in, segmentID_in, aspectCMD_in)
+FROZENVAR
+	pointID : 0..25;
+	segmentID : 0..50;
+VAR
+	-- POINT related:
+	aspectActual : {normal, reverse, intermediate};
+	-- TRACK related, like in Module LinearSection
+	-- simplified: train has head and tail, and can occupy either:
+	--    - exactly 1 section (completeTrainOcc), or
+	--    - exactly 2 sections, one has the head, the other has the tail.
+	-- In the real world, train could be longer, but if it drives slowly, most trains will act
+	-- very similar to what we can model with this.
+	occDown : {free, headOcc, completeTrainOcc, tailOcc, errorOcc}; -- init in central module
+	occUp : {free, headOcc, completeTrainOcc, tailOcc, errorOcc};   -- init in central module
+	
+	-- Here one could now add more VARs, e.g., the equivalent of Vu et al.'s model, 
+	-- which has "prevElemReleased" and "lockMode".
+
+ASSIGN
+	-- frozen VARs
+	init(pointID) := pointID_in;
+	init(segmentID) := segmentID_in;
+
+	-- normal VARs
+	init(aspectActual) := normal;
+	
+	-- point position calculation
+	next(aspectActual) := case
+		aspectActual = normal & aspectCMD_in = normal : normal;
+		aspectActual = normal & aspectCMD_in = reverse : intermediate;
+		aspectActual = reverse & aspectCMD_in = reverse : reverse;
+		aspectActual = reverse & aspectCMD_in = normal : intermediate;
+		-- if in intermediate, change to aspectCMD_in next
+		aspectActual = intermediate : aspectCMD_in;
+		TRUE : aspectActual;
+	esac;
+
+
+-- # Route module
+-- Represents a route in the interlock
+-- Input: routeID_in, routeMode_in
+MODULE RouteState(routeID_in, routeMode_in)
+FROZENVAR
+	rID : 0..10;
+	mode : {free, marked, allocating, locked, occupied};
+
+ASSIGN
+	init(rID) := routeID_in;
+	init(mode) := routeMode_in;
+
+
+-- This bundles all segments/sections, points, train movement etc.
+MODULE TrackState
+FROZENVAR
+	-- act like constants for telling a signal its direction
+	dirDown : {down, up};
+	dirUp : {down, up};
+VAR
+	-- demo: 
+	-- linear sections 1-5, 7-12
+	-- (0 - 1 - 2) - (3 - 4 - 5) | POINT1/seg6 | (normal: 7 - 8 - 9) (reverse: 10 - 11 - 12)
+	-- signals: 
+	-- - signal1: seg1 Down -> signal1 -> seg2 Down
+	-- - signal2: seg4 Down -> signal2 -> seg5 Down
+	-- - signal3: seg8 Down -> signal3 -> seg8 Down
+	-- - signal4: seg8 Up -> signal4 -> seg9 Up
+	-- - signal5: seg4 Up -> signal5 -> seg3 Up
+	-- - signal6: seg1 Up -> signal6 -> seg0 Up
+	-- - signal7: seg11 Down -> signal7 -> seg12 Down
+	-- - signal8: seg11 Up -> signal8 -> seg10 Up
+	
+	
+	seg0 :  LinearSection(0);
+	seg1 :  LinearSection(1);
+	seg2 :  LinearSection(2);
+	seg3 :  LinearSection(3);
+	seg4 :  LinearSection(4);
+	seg5 :  LinearSection(5);
+	
+	seg7 :  LinearSection(7);
+	seg8 :  LinearSection(8);
+	seg9 :  LinearSection(9);
+	seg10 : LinearSection(10);
+	seg11 : LinearSection(11);
+	seg12 : LinearSection(12);
+	
+	-- Points
+	-- point1: 
+	--    - normal  = seg5 <-> point1 <-> seg7
+	--    - reverse = seg5 <-> point1 <-> seg10
+	point1CMD : {normal, reverse};
+	point1 : Point(1,6,point1CMD); -- first number ID of point, second number ID of segment
+	
+	-- Signals
+	-- signal1: direction: DOWN, between seg1 and seg2
+	signal1CMD : {go, stop}; -- what if we want NO command? might just have to keep it as prev value.
+	signal1 : Signal(1, signal1CMD, dirDown, 1, 2);
+	
+	-- signal2: direction: DOWN, between seg4 and seg5
+	signal2CMD : {go, stop};
+	signal2 : Signal(2, signal2CMD, dirDown, 4, 5);
+	
+	-- signal3: direction: DOWN, between seg8 and seg9
+	signal3CMD : {go, stop};
+	signal3 : Signal(3, signal3CMD, dirDown, 8, 9);
+	
+	-- signal4: direction: UP, between seg8 and seg7
+	signal4CMD : {go, stop};
+	signal4 : Signal(4, signal4CMD, dirUp, 8, 7);
+	
+	-- signal5: direction: UP, between seg4 and seg3
+	signal5CMD : {go, stop};
+	signal5 : Signal(5, signal5CMD, dirUp, 4, 3);
+	
+	-- signal6: direction: UP, between seg1 and seg0
+	signal6CMD : {go, stop};
+	signal6 : Signal(6, signal6CMD, dirUp, 1, 0);
+	
+	-- signal7: direction: DOWN, between seg11 and seg12
+	signal7CMD : {go, stop};
+	signal7 : Signal(7, signal7CMD, dirDown, 11, 12);
+	
+	-- signal8: direction: UP, between seg11 and seg10
+	signal8CMD : {go, stop};
+	signal8 : Signal(8, signal8CMD, dirUp, 11, 10);
+	
+	
+
+ASSIGN
+	-- frozen vars
+	init(dirDown) := down;
+	init(dirUp) := up;
+	
+	-- normal vars
+	
+	-- ==================== Currently configured scenario: ====================
+	-- One train starts on seg1 with DOWN orientation.
+	-- Another train starts on seg11 with UP orientation.
+	-- When the first train is in front of signal1 and signal2, 
+	-- these signals are set to go to let the train pass.
+	-- signal1 and signal2 are set to stop once the train has passed them.
+	-- point1 remains in normal during this time, so that the first train 
+	-- will drive to seg8.
+	-- Once the first train has reached seg8, point1 is set to reverse.
+	-- Once point1 is in reverse, and the first train is at seg8, signal8 
+	-- will be set to go, to let the second train pass.
+	-- signal8 is set to stop once passed.
+	-- When the second train is in front of signal5, signal5 is set to go to 
+	-- let the train pass. signal5 is then set to stop once passed.
+	-- The second train will then reach seg1 (in UP orientation) and stop there.
+	-- The trains will now stay at their position (seg8 and seg1, respectively).
+	
+	-- NOTE: once an interlocker/interlocking is introduced, point and signal cmds 
+	--       will need to be handled differently.
+	
+	-- NOTE: the time that verification of LTL properties takes can heavily depend 
+	--       on how exactly the next function for point and signal CMDs is written.
+	--       Forcing variable (re)ordering after "go" can help alleviate this.
+	
+	-- POINTS INITIAL
+	init(point1CMD) := normal;
+	
+	-- SIGNALS INITIAL
+	init(signal1CMD) := stop;
+	init(signal2CMD) := stop;
+	init(signal3CMD) := stop;
+	init(signal4CMD) := stop;
+	init(signal5CMD) := stop;
+	init(signal6CMD) := stop;
+	init(signal7CMD) := stop;
+	init(signal8CMD) := stop;
+	
+	-- SEGMENTS/POINT OCCUPANCY INITIAL
+	init(seg0.occDown) := free;
+	init(seg0.occUp) := free;
+	
+	init(seg1.occDown) := completeTrainOcc;
+	init(seg1.occUp) := free;
+	
+	init(seg2.occDown) := free;
+	init(seg2.occUp) := free;
+	
+	init(seg3.occDown) := free;
+	init(seg3.occUp) := free;
+	
+	init(seg4.occDown) := free;
+	init(seg4.occUp) := free;
+	
+	init(seg5.occDown) := free;
+	init(seg5.occUp) := free;
+	
+	init(seg7.occDown) := free;
+	init(seg7.occUp) := free;
+	
+	init(seg8.occDown) := free;
+	init(seg8.occUp) := free;
+	
+	init(seg9.occDown) := free;
+	init(seg9.occUp) := free;
+	
+	init(seg10.occDown) := free;
+	init(seg10.occUp) := free;
+	
+	init(seg11.occDown) := free;
+	init(seg11.occUp) := completeTrainOcc;
+	
+	init(seg12.occDown) := free;
+	init(seg12.occUp) := free;
+	
+	init(point1.occDown) := free;
+	init(point1.occUp) := free;
+	
+	
+	-- POINTS NEXT
+	
+	next(point1CMD) := case
+		-- point is free and seg8 is occupied -> first train 
+		-- has reached goal -> change point aspect to reverse.
+		point1CMD = normal & point1.occDown = free & seg8.occDown != free: reverse;
+		-- stay in prev cmd
+		TRUE: point1CMD;
+	esac;
+	
+	
+	-- SIGNALS NEXT
+	next(signal1CMD) := case
+		-- command signal to GO if train is in front of the signal with DOWN orientation
+		seg1.occDown = completeTrainOcc | seg1.occDown = headOcc : go;
+		-- otherwise command signal to STOP
+		TRUE: stop;
+	esac;
+	
+	next(signal2CMD) := case
+		-- command signal to GO if train is in front of the signal with DOWN orientation
+		seg4.occDown = completeTrainOcc | seg4.occDown = headOcc : go;
+		-- otherwise command signal to STOP
+		TRUE: stop;
+	esac;
+	
+	next(signal3CMD) := stop;
+	next(signal4CMD) := stop;
+	
+	next(signal5CMD) := case
+		-- command signal to GO if train is in front of the signal with UP orientation
+		-- (here slightly different for testing: only do it when complete train is 
+		--  in front, not only its head.)
+		seg4.occUp = completeTrainOcc : go;
+		-- otherwise command signal to STOP
+		TRUE: stop;
+	esac;
+	
+	next(signal6CMD) := stop;
+	next(signal7CMD) := stop;
+	
+	next(signal8CMD) := case
+		-- command signal to GO if train is in front of the signal with UP orientation,
+		-- and the point is in aspect reverse.
+		-- NOTE: this does not check if the first train arrived at seg8 already, this is checked
+		--       in the logic for changing point1 to reverse.
+		(seg11.occUp = completeTrainOcc | seg11.occUp = headOcc) & point1.aspectActual = reverse : go;
+		-- otherwise command signal to STOP
+		TRUE: stop;
+	esac;
+	
+	-- OCCUPANCY NEXT -> train movement
+
+	-- train movement can be modeled in different ways. Here we pick one "strategy",
+	-- makeing some assumptions in turn, for implementing it.
+	-- For each segment/section, we define how the occupancy can change.
+	-- For making sure that trains don't split apart ("train integrity"),
+	-- we also add *constraints* later. These constraints simply "forbid" an execution/run
+	-- to go into any state that violates the constraint(s).
+	-- Thus we have to be careful not to constrain behavior which we actually want to be possible!
+	
+	-- Train movement assumptions/defs:
+	--    -> these require justification for why these assumptions can be made,
+	--       especially regarding the validity of train movement, i.e., that the train movement
+	--       possible in SMV represents the possible train movements on the swtbahn, such that
+	--       verification results on this SMV model can reasonably be transferred to the swtbahn.
+	--       
+	-- - trains are eager to move (!!).
+	-- - (trivial) if a train can't move forward due to end of the line/track, it stays where it is.
+	-- - a train can either occupy 2 adjacent segments with the same direction ("headOcc" on one, "tailOcc" on the other),
+	--   or a single segment, which then must have the occ value "completeTrainOcc".
+	-- - a train entering a segment always first occupies with head only,
+	--   i.e., for a direction, a "free" segment can only go to "headOcc" or "free".
+	-- - if a segment is occupied by the head of a train ("headOcc"), then in the next step 
+	--   the segment is occupied either by the complete Train ("completeTrainOcc") or by the tail ("tailOcc").
+	-- - constraints ensure that a train can never split, or have two heads, two tails, and so on
+	-- - a train cannot change directions (justification required/might want to allow change in specific situations)
+	
+	
+	
+	
+	-- Rules/Reminders for writing the segment next functions, these need to be considered for each direction individually.
+	-- Depending on the kind of adjacent segments/sections (or lack thereof) and signals (or lack thereof),
+	-- there are a few "cases" that repeat; i.e., the logic controlling train movements will have the same pattern
+	-- for segments/sections with similar surroundings.
+	-- Also note that like SMV "case ... esac" statements, these conditionals have to be considered
+	-- sequentially, one after the other. I.e., first checking the first if, then if that doesnt apply,
+	-- checking the second if, and so on.
+	
+	-- CASE 1a: LinearSection with no signal ahead or behind, and nothing behind (start of the line), 
+	--          and point or LinearSection ahead:
+	-- - if occ is errorOcc, occ stays errorOcc
+	-- - if occ is free, occ stays free
+	-- - if occ is headOcc, occ goes to errorOcc (note: invalid, cant have head when no previous segment exists)
+	-- - if occ is completeTrainOcc, occ goes to tailOcc
+	-- - if occ is tailOcc, occ goes to free
+	-- - if none of the above matches, occ keeps current value
+	
+	-- CASE 1b: LinearSection with signal behind, and nothing in front (end of the line), and LinearSection behind or pointStem behind:
+	-- - if occ is errorOcc, occ stays errorOcc
+	-- - if occ is free, and the previous segment is free or errorOcc, occ stays free
+	-- - if occ is free, and the previous segment is headOcc, and the signal is GO, occ goes to headOcc or stays free
+	-- - if occ is free, and the previous segment is completeTrainOcc, and the signal is GO, occ goes to headOcc
+	-- - if occ is free, and the signal is STOP, occ stays free
+	-- - if occ is free, and the previous segment is tailOcc, occ goes to errorOcc
+	-- - if occ is headOcc, occ goes to completeTrainOcc
+	-- - if occ is completeTrainOcc, occ stays completeTrainOcc
+	-- - if occ is tailOcc, occ goes to errorOcc (note: invalid, can't move out of bounds)
+	-- - if none of the above matches, occ keeps current value
+	
+	-- CASE 2: LinearSection with no signal ahead or behind, and LinearSection behind or pointStem behind, and point or LinearSection ahead:
+	-- - if occ is errorOcc, occ stays errorOcc
+	-- - if occ is free, and the previous segment is free or errorOcc, occ stays free
+	-- - if occ is free, and the previous segment is headOcc, occ goes to headOcc or stays free
+	-- - if occ is free, and the previous segment is completeTrainOcc, occ goes to headOcc
+	-- - if occ is free, and the previous segment is tailOcc, occ goes to errorOcc
+	-- - if occ is headOcc, occ goes to completeTrainOcc or tailOcc
+	-- - if occ is completeTrainOcc, occ goes to tailOcc
+	-- - if occ is tailOcc, occ goes to free
+	-- - if none of the above matches, occ keeps current value
+	
+	-- CASE 3: LinearSection with a signal behind it (guarding entry), and LinearSection or pointStem behind, and point or LinearSection ahead:
+	-- - if occ is errorOcc, occ stays errorOcc
+	-- - if occ is free, and the previous segment is free or errorOcc, occ stays free
+	-- - if occ is free, and the previous segment is headOcc, and the signal is GO, occ goes to headOcc or stays free
+	-- - if occ is free, and the previous segment is completeTrainOcc, and the signal is GO, occ goes to headOcc
+	-- - if occ is free, and the signal is STOP, occ stays free
+	-- - if occ is free, and the previous segment is tailOcc, occ goes to errorOcc
+	-- - if occ is headOcc, occ goes to completeTrainOcc or tailOcc
+	-- - if occ is completeTrainOcc, occ goes to tailOcc
+	-- - if occ is tailOcc, occ goes to free
+	-- - if none of the above matches, occ keeps current value
+	
+	-- CASE 4: LinearSection with a signal in front (guarding exit), and LinearSection or pointStem behind, and point or LinearSection ahead:
+	-- - if occ is errorOcc, occ stays errorOcc
+	-- - if occ is free, and the previous segment is free or errorOcc, occ stays free
+	-- - if occ is free, and the previous segment is headOcc, occ goes to headOcc or stays free
+	-- - if occ is free, and the previous segment is completeTrainOcc, occ goes to headOcc
+	-- - if occ is free, and the previous segment is tailOcc, occ goes to errorOcc
+	-- - if occ is headOcc, and the signal is GO, occ goes to completeTrainOcc or tailOcc
+	-- - if occ is headOcc, and the signal is STOP, occ goes to completeTrainOcc
+	-- - if occ is completeTrainOcc, and the signal is GO, occ goes to tailOcc
+	-- - if occ is completeTrainOcc, and the signal is STOP, occ stays completeTrainOcc
+	-- - if occ is tailOcc, occ goes to free
+	-- - if none of the above matches, occ keeps current value
+	
+	-- CASE 5a: LinearSection with no signal in front or back, and a LinearSection ahead, 
+	--  and a point behind/point as previous segment, and connected to the straight exit (NOT the stem!) of the point:
+	-- - if occ is errorOcc, occ stays errorOcc
+	-- - if occ is free, and the previous pointsegment is free or errorOcc, occ stays free
+	-- - if occ is free, and the pointsegment aspect is NOT normal, occ stays free
+	-- - if occ is free, and the previous pointsegment is headOcc, and the pointsegment aspect is normal, occ goes to headOcc or stays free
+	-- - if occ is free, and the previous pointsegment is completeTrainOcc, and the pointsegment aspect is normal, occ goes to headOcc
+	-- - if occ is free, and the previous pointsegment is tailOcc, and the pointsegment aspect is normal, occ goes to errorOcc
+	-- - if occ is headOcc, and the pointsegment aspect is normal, occ goes to completeTrainOcc or tailOcc
+	-- - if occ is headOcc, and the pointsegment aspect is NOT normal, occ goes to errorOcc
+	-- - if occ is completeTrainOcc, occ goes to tailOcc
+	-- - if occ is tailOcc, occ goes to free
+	-- - if none of the above matches, occ keeps current value
+	
+	-- CASE 5b: LinearSection with no signal in front or back, and a LinearSection ahead, 
+	--  and a point behind/point as previous segment, and connected to the branching exit of the point:
+	-- - if occ is errorOcc, occ stays errorOcc
+	-- - if occ is free, and the previous pointsegment is free or errorOcc, occ stays free
+	-- - if occ is free, and the pointsegment aspect is NOT reverse, occ stays free
+	-- - if occ is free, and the previous pointsegment is headOcc, and the pointsegment aspect is reverse, occ goes to headOcc or stays free
+	-- - if occ is free, and the previous pointsegment is completeTrainOcc, and the pointsegment aspect is reverse, occ goes to headOcc
+	-- - if occ is free, and the previous pointsegment is tailOcc, and the pointsegment aspect is reverse, occ goes to errorOcc
+	-- - if occ is headOcc, and the pointsegment aspect is reverse, occ goes to completeTrainOcc or tailOcc
+	-- - if occ is headOcc, and the pointsegment aspect is NOT reverse, occ goes to errorOcc
+	-- - if occ is completeTrainOcc, occ goes to tailOcc
+	-- - if occ is tailOcc, occ goes to free
+	-- - if none of the above matches, occ keeps current value
+	
+	
+	-- Point is not direction invariant, so both versions:
+	
+	-- CASE 6a: Point with no signal in front, LinearSections ahead and behind, and in direction from Stem to other side
+	--     (i.e., direction where train drives onto stem first, and then either branches off or goes straight)
+	-- - if occ is errorOcc, occ stays errorOcc
+	-- - if occ is NOT free, and the point aspect is intermediate, occ goes to errorOcc
+	-- - if occ is free, and the previous segment is free or errorOcc, occ stays free
+	-- - if occ is free, and the previous segment is headOcc, occ goes to headOcc or stays free
+	-- - if occ is free, and the previous segment is completeTrainOcc, occ goes to headOcc
+	-- - if occ is free, and the previous segment is tailOcc, occ goes to errorOcc
+	-- - if occ is headOcc, occ goes to completeTrainOcc or tailOcc
+	-- - if occ is completeTrainOcc, occ goes to tailOcc
+	-- - if occ is tailOcc, occ goes to free
+	-- - if none of the above matches, occ keeps current value
+	
+	-- CASE 6b: Point with no signal in front, LinearSections ahead and behind, and in direction from potentially branching side to stem
+	--    (i.e., coming from previous segments "branchSegment" or "normalSegment"!)
+	-- - if occ is errorOcc, occ stays errorOcc
+	-- - if occ is NOT free, and the point aspect is intermediate, occ goes to errorOcc
+	-- - if occ is free, and normalSegment is free or errorOcc, and branchSegment is free or errorOcc, occ stays free
+	-- - if occ is free, and normalSegment is completeTrainOcc or headOcc, and branchSegment is completeTrainOcc or headOcc, occ goes to errorOcc
+	-- - if occ is free, and normalSegment is tailOcc or branchSegment is tailOcc, occ goes to errorOcc
+	-- - if occ is free, and normalSegment is completeTrainOcc or headOcc, and point aspect is NOT normal, occ goes to errorOcc
+	-- - if occ is free, and normalSegment is headOcc,          and point aspect is normal, occ goes to headOcc or stays free
+	-- - if occ is free, and normalSegment is completeTrainOcc, and point aspect is normal, occ goes to headOcc
+	-- - if occ is free, and branchSegment is completeTrainOcc or headOcc, and point aspect is NOT reverse, occ goes to errorOcc
+	-- - if occ is free, and branchSegment is headOcc,          and point aspect is reverse, occ goes to headOcc or stays free
+	-- - if occ is free, and branchSegment is completeTrainOcc, and point aspect is reverse, occ goes to headOcc
+	-- - if occ is free (and the rules above did not apply), occ stays free (can happen if prev segments have error.)
+	-- - if occ is headOcc, and normalSegment is tailOcc, and (branchSegment is NOT in {free or errorOcc} OR point aspect is not normal), occ goes to errorOcc
+	-- - if occ is headOcc, and (normalSegment is NOT in {free or errorOcc} OR point aspect is not reverse), and branchSegment is tailOcc, occ goes to errorOcc
+	-- - if occ is headOcc (and the rules above did not apply), occ goes to completeTrainOcc or tailOcc
+	-- - if occ is completeTrainOcc, occ goes to tailOcc
+	--      (note: no check if another train enters; this should not happen if interlocker logic is correct,
+	--             and it should be possible to write a property to detect it.)
+	-- - if occ is tailOcc, occ goes to free
+	-- - if none of the above matches, occ keeps current value
+	
+	
+	-- seg0
+	-- down, CASE 1a: from END to seg1, no signals (start of the line)
+	next(seg0.occDown) := case
+		-- stays free as no train can enter from out of bounds
+		seg0.occDown = free : free;
+		
+		-- errorOcc if head of a train is here, as the tail has no previous segment to be on
+		seg0.occDown = headOcc : errorOcc;
+		
+		-- train moves on with head if train is present
+		seg0.occDown = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg0.occDown = tailOcc : free; 
+		
+		TRUE: seg0.occDown;
+	esac;
+	
+	-- up, CASE 1b: from seg1 to END, entry guarded by signal6
+	next(seg0.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg0.occUp = free & seg1.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train and signal is GO
+		seg0.occUp = free & seg1.occUp = headOcc & signal6.aspectActual = go: {headOcc, free};
+		
+		-- train head enters if previous segment has complete train and signal is GO
+		seg0.occUp = free & seg1.occUp = completeTrainOcc & signal6.aspectActual = go: headOcc;
+		
+		-- stays free if signal is stop
+		seg0.occUp = free & signal6.aspectActual = stop : free;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg0.occUp = free & seg1.occUp = tailOcc : errorOcc;
+		
+		-- end of the line, train collects here
+		seg0.occUp = headOcc : completeTrainOcc;
+		
+		-- end of the line, train stays here
+		seg0.occUp = completeTrainOcc : completeTrainOcc;
+		
+		-- errorOcc if this segment has a tail, as due to end of the line there's nowhere to move
+		seg0.occUp = tailOcc : errorOcc;
+		
+		TRUE: seg0.occUp;
+	esac;
+	
+	
+	
+	-- seg1 (main)
+	-- down, CASE 4: from seg0 to seg2, exit guarded by signal1
+	next(seg1.occDown) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg1.occDown = free & seg0.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg1.occDown = free & seg0.occDown = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg1.occDown = free & seg0.occDown = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg1.occDown = free & seg0.occDown = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present and signal is GO
+		seg1.occDown = headOcc & signal1.aspectActual = go : {completeTrainOcc, tailOcc};
+		
+		-- train collects here if head present and signal is STOP
+		seg1.occDown = headOcc & signal1.aspectActual = stop : completeTrainOcc;
+		
+		-- train moves on with head if train is present and signal is GO
+		seg1.occDown = completeTrainOcc & signal1.aspectActual = go : tailOcc;
+		
+		-- train stays here if train is present and signal is STOP
+		seg1.occDown = completeTrainOcc & signal1.aspectActual = stop : completeTrainOcc;
+		
+		-- train tail leaves if tail is present
+		seg1.occDown = tailOcc : free;
+		
+		TRUE: seg1.occDown;
+	esac;
+	
+	-- up, CASE 4: from seg2 to seg0, exit guarded by signal6
+	next(seg1.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg1.occUp = free & seg2.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg1.occUp = free & seg2.occUp = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg1.occUp = free & seg2.occUp = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg1.occUp = free & seg2.occUp = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present and signal is GO
+		seg1.occUp = headOcc & signal6.aspectActual = go : {completeTrainOcc, tailOcc};
+		
+		-- train collects here if head present and signal is STOP
+		seg1.occUp = headOcc & signal6.aspectActual = stop : completeTrainOcc;
+		
+		-- train moves on with head if train is present and signal is GO
+		seg1.occUp = completeTrainOcc & signal6.aspectActual = go : tailOcc;
+		
+		-- train stays here if train is present and signal is STOP
+		seg1.occUp = completeTrainOcc & signal6.aspectActual = stop : completeTrainOcc;
+		
+		-- train tail leaves if tail is present
+		seg1.occUp = tailOcc : free;
+		
+		TRUE: seg1.occUp;
+	esac;
+	
+	
+	
+	-- seg2
+	-- down, CASE 3: from seg1 to seg3, entry guarded by signal1
+	next(seg2.occDown) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg2.occDown = free & seg1.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train and signal is GO 
+		seg2.occDown = free & seg1.occDown = headOcc & signal1.aspectActual = go : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train and signal is GO
+		seg2.occDown = free & seg1.occDown = completeTrainOcc & signal1.aspectActual = go : headOcc;
+		
+		-- stays free if signal is stop
+		seg2.occDown = free & signal1.aspectActual = stop : free;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg2.occDown = free & seg1.occDown = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present
+		seg2.occDown = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		seg2.occDown = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg2.occDown = tailOcc : free;
+		
+		TRUE: seg2.occDown;
+	esac;
+	
+	-- up, CASE 2: from seg3 to seg1, no signals
+	next(seg2.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg2.occUp = free & seg3.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg2.occUp = free & seg3.occUp = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg2.occUp = free & seg3.occUp = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg2.occUp = free & seg3.occUp = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present
+		seg2.occUp = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		seg2.occUp = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg2.occUp = tailOcc : free;
+		
+		TRUE: seg2.occUp;
+	esac;
+	
+	
+	
+	-- seg3
+	-- down, CASE 2: from seg2 to seg3, no signals
+	next(seg3.occDown) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg3.occDown = free & seg2.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg3.occDown = free & seg2.occDown = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg3.occDown = free & seg2.occDown = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg3.occDown = free & seg2.occDown = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present
+		seg3.occDown = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		seg3.occDown = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg3.occDown = tailOcc : free;
+		
+		TRUE: seg3.occDown;
+	esac;
+	
+	-- up, CASE 3: from seg4 to seg2, entry guarded by signal5
+	next(seg3.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg3.occUp = free & seg4.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train and signal is GO 
+		seg3.occUp = free & seg4.occUp = headOcc & signal5.aspectActual = go : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train and signal is GO
+		seg3.occUp = free & seg4.occUp = completeTrainOcc & signal5.aspectActual = go : headOcc;
+		
+		-- stays free if signal is stop
+		seg3.occUp = free & signal5.aspectActual = stop : free;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg3.occUp = free & seg4.occUp = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present
+		seg3.occUp = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		seg3.occUp = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg3.occUp = tailOcc : free;
+		
+		TRUE: seg3.occUp;
+	esac;
+	
+	
+	
+	-- seg4 (main)
+	-- down, CASE 4: from seg3 to seg5, exit guarded by signal2
+	next(seg4.occDown) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg4.occDown = free & seg3.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg4.occDown = free & seg3.occDown = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg4.occDown = free & seg3.occDown = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg4.occDown = free & seg3.occDown = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present and signal is GO
+		seg4.occDown = headOcc & signal2.aspectActual = go : {completeTrainOcc, tailOcc};
+		
+		-- train collects here if head present and signal is STOP
+		seg4.occDown = headOcc & signal2.aspectActual = stop : completeTrainOcc;
+		
+		-- train moves on with head if train is present and signal is GO
+		seg4.occDown = completeTrainOcc & signal2.aspectActual = go : tailOcc;
+		
+		-- train stays here if train is present and signal is STOP
+		seg4.occDown = completeTrainOcc & signal2.aspectActual = stop : completeTrainOcc;
+		
+		-- train tail leaves if tail is present
+		seg4.occDown = tailOcc : free;
+		
+		TRUE: seg4.occDown;
+	esac;
+	
+	-- up, CASE 4: from seg5 to seg3, exit guarded by signal5
+	next(seg4.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg4.occUp = free & seg5.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg4.occUp = free & seg5.occUp = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg4.occUp = free & seg5.occUp = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg4.occUp = free & seg5.occUp = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present and signal is GO
+		seg4.occUp = headOcc & signal5.aspectActual = go : {completeTrainOcc, tailOcc};
+		
+		-- train collects here if head present and signal is STOP
+		seg4.occUp = headOcc & signal5.aspectActual = stop : completeTrainOcc;
+		
+		-- train moves on with head if train is present and signal is GO
+		seg4.occUp = completeTrainOcc & signal5.aspectActual = go : tailOcc;
+		
+		-- train stays here if train is present and signal is STOP
+		seg4.occUp = completeTrainOcc & signal5.aspectActual = stop : completeTrainOcc;
+		
+		-- train tail leaves if tail is present
+		seg4.occUp = tailOcc : free;
+		
+		TRUE: seg4.occUp;
+	esac;
+	
+	
+	
+	-- seg5
+	-- down, CASE 3: from seg4 to point1, entry guarded by signal2
+	next(seg5.occDown) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg5.occDown = free & seg4.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train and signal is GO 
+		seg5.occDown = free & seg4.occDown = headOcc & signal2.aspectActual = go : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train and signal is GO
+		seg5.occDown = free & seg4.occDown = completeTrainOcc & signal2.aspectActual = go : headOcc;
+		
+		-- stays free if signal is stop
+		seg5.occDown = free & signal2.aspectActual = stop : free;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg5.occDown = free & seg4.occDown = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present
+		seg5.occDown = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		seg5.occDown = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg5.occDown = tailOcc : free;
+		
+		TRUE: seg5.occDown;
+	esac;
+	
+	-- up, CASE 2: from point1 to seg4, no signals
+	next(seg5.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg5.occUp = free & point1.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg5.occUp = free & point1.occUp = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg5.occUp = free & point1.occUp = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg5.occUp = free & point1.occUp = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present
+		seg5.occUp = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		seg5.occUp = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg5.occUp = tailOcc : free;
+		
+		TRUE: seg5.occUp;
+	esac;
+	
+	
+	
+	-- point1
+	-- down, CASE 6a: from seg5 to seg7 (normal) OR seg10 (reverse), no signals
+	next(point1.occDown) := case
+		-- errorOcc if train present and aspect is INTERMEDIATE
+		point1.occDown != free & point1.aspectActual = intermediate : errorOcc;
+		
+		-- stays free if previous segment doesnt have a train or has error
+		point1.occDown = free & seg5.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		point1.occDown = free & seg5.occDown = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		point1.occDown = free & seg5.occDown = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		point1.occDown = free & seg5.occDown = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present
+		point1.occDown = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		point1.occDown = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		point1.occDown = tailOcc : free;
+		
+		TRUE: point1.occDown;
+	esac;
+	
+	-- up, CASE 6b: from seg7 (normal) OR seg10 (reverse) to seg5, no signals
+	next(point1.occUp) := case
+		-- errorOcc if train present and aspect is INTERMEDIATE
+		point1.occUp != free & point1.aspectActual = intermediate : errorOcc;
+		
+		-- stays free if both previous segments do not have a train or have error
+		point1.occUp = free & seg7.occUp in {free, errorOcc} & seg10.occUp in {free, errorOcc} : free;
+		
+		-- errorOcc if previous normal segment has train or train head, and previous reverse segment also has train or train head
+		point1.occUp = free & seg7.occUp in {headOcc, completeTrainOcc} & seg10.occUp in {headOcc, completeTrainOcc} : errorOcc;
+		
+		-- errorOcc if previous normal segment has tailOcc, or previous reverse segment has tailOcc, and this point/segment has no head
+		point1.occUp = free & (seg7.occUp = tailOcc | seg10.occUp = tailOcc) : errorOcc;
+		
+		-- due to the checks above, if we are here, then at least one of the segments is free or error, and the other has a train
+		-- that could/will enter. Can thus simplify the checks a little.
+		
+		-- errorOcc if previous normal segment has complete train or train head, and point aspect is NOT NORMAL
+		-- NOTE: this means we "fail early" - head has not necessarily entered yet, but we still go to errorOcc already.
+		point1.occUp = free & seg7.occUp in {headOcc, completeTrainOcc} & point1.aspectActual != normal : errorOcc;
+		
+		-- head of train may enter if previous normal segment has head of train, and point aspect is NORMAL
+		point1.occUp = free & seg7.occUp = headOcc & point1.aspectActual = normal : {headOcc, free};
+		
+		-- head of train enters if previous normal segment has complete train, and point aspect is NORMAL
+		point1.occUp = free & seg7.occUp = completeTrainOcc & point1.aspectActual = normal : headOcc;
+		
+		-- errorOcc if previous reverse segment has complete train or train head, and point aspect is NOT REVERSE
+		-- NOTE: this means we "fail early" - head has not necessarily entered yet, but we still go to errorOcc already.
+		point1.occUp = free & seg10.occUp in {headOcc, completeTrainOcc} & point1.aspectActual != reverse : errorOcc;
+		
+		-- head of train may enter if previous reverse segment has head of train, and point aspect is REVERSE
+		point1.occUp = free & seg10.occUp = headOcc & point1.aspectActual = reverse : {headOcc, free};
+		
+		-- head of train enters if previous reverse segment has complete train, and point aspect is REVERSE
+		point1.occUp = free & seg10.occUp = completeTrainOcc & point1.aspectActual = reverse : headOcc;
+		
+		-- stays free if no condition above allowed a train to enter 
+		--  (defined here out of caution, in case a broad catch if is used below)
+		point1.occUp = free : free;
+		
+		-- errorOcc if head of train here, and previous normal segment has tail of train, 
+		-- and ((previous reverse segment is not free or errorOcc) OR (point aspect is NOT NORMAL))
+		point1.occUp = headOcc & seg7.occUp = tailOcc & (!(seg10.occUp in {free, errorOcc}) | point1.aspectActual != normal) : errorOcc;
+		
+		-- errorOcc if head of train here, and previous reverse segment has tail of train, 
+		-- and ((previous normal segment is not free or errorOcc) OR (point aspect is NOT REVERSE))
+		point1.occUp = headOcc & seg10.occUp = tailOcc & (!(seg7.occUp in {free, errorOcc}) | point1.aspectActual != reverse) : errorOcc;
+		
+		-- train head leaves or train collects here if head present (and none of the above conditionals match)
+		point1.occUp = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		--      (note: no check if another train enters; this should not happen if interlocker logic is correct,
+		--             and it should be possible to write a property to detect it.)
+		point1.occUp = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		point1.occUp = tailOcc : free;
+		
+		TRUE: point1.occUp;
+	esac;
+	
+	
+	
+	-- seg7
+	-- down, CASE 5a: from point1-normal to seg8, no signals
+	next(seg7.occDown) := case
+		-- stays free if previous point-segment doesnt have a train or has error
+		seg7.occDown = free & point1.occDown in {free, errorOcc} : free;
+		
+		-- stays free if previous point position is not NORMAL
+		seg7.occDown = free & point1.aspectActual != normal : free;
+		
+		-- train head may enter if previous point-segment has head of a train and point position is NORMAL
+		seg7.occDown = free & point1.occDown = headOcc & point1.aspectActual = normal : {headOcc, free};
+		
+		-- train head enters if previous point-segment has complete train and point position is NORMAL
+		seg7.occDown = free & point1.occDown = completeTrainOcc & point1.aspectActual = normal : headOcc;
+		
+		-- errorOcc if previous point-segment has tail but this segment has no head and point position is NORMAL
+		seg7.occDown = free & point1.occDown = tailOcc & point1.aspectActual = normal : errorOcc;
+		
+		-- train head leaves or train collects here if head present and point position is NORMAL
+		seg7.occDown = headOcc & point1.aspectActual = normal : {completeTrainOcc, tailOcc};
+		
+		-- errorOcc if head present and point position is NOT normal
+		seg7.occDown = headOcc & point1.aspectActual != normal : errorOcc;
+		
+		-- train moves on with head if train is present
+		seg7.occDown = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg7.occDown = tailOcc : free;
+		
+		TRUE: seg7.occDown;
+	esac;
+	
+	-- up, CASE 3: from seg8 to point1, entry guarded by signal4
+	next(seg7.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg7.occUp = free & seg8.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train and signal is GO 
+		seg7.occUp = free & seg8.occUp = headOcc & signal4.aspectActual = go : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train and signal is GO
+		seg7.occUp = free & seg8.occUp = completeTrainOcc & signal4.aspectActual = go : headOcc;
+		
+		-- stays free if signal is stop
+		seg7.occUp = free & signal4.aspectActual = stop : free;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg7.occUp = free & seg8.occUp = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present
+		seg7.occUp = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		seg7.occUp = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg7.occUp = tailOcc : free;
+		
+		TRUE: seg7.occUp;
+	esac;
+	
+	
+	
+	-- seg8 (main)
+	-- down, CASE 4: from seg7 to seg9, exit guarded by signal3
+	next(seg8.occDown) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg8.occDown = free & seg7.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg8.occDown = free & seg7.occDown = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg8.occDown = free & seg7.occDown = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg8.occDown = free & seg7.occDown = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present and signal is GO
+		seg8.occDown = headOcc & signal3.aspectActual = go : {completeTrainOcc, tailOcc};
+		
+		-- train collects here if head present and signal is STOP
+		seg8.occDown = headOcc & signal3.aspectActual = stop : completeTrainOcc;
+		
+		-- train moves on with head if train is present and signal is GO
+		seg8.occDown = completeTrainOcc & signal3.aspectActual = go : tailOcc;
+		
+		-- train stays here if train is present and signal is STOP
+		seg8.occDown = completeTrainOcc & signal3.aspectActual = stop : completeTrainOcc;
+		
+		-- train tail leaves if tail is present
+		seg8.occDown = tailOcc : free;
+		
+		TRUE: seg8.occDown;
+	esac;
+	
+	-- up, CASE 4: from seg9 to seg7, exit guarded by signal4
+	next(seg8.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg8.occUp = free & seg9.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg8.occUp = free & seg9.occUp = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg8.occUp = free & seg9.occUp = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg8.occUp = free & seg9.occUp = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present and signal is GO
+		seg8.occUp = headOcc & signal4.aspectActual = go : {completeTrainOcc, tailOcc};
+		
+		-- train collects here if head present and signal is STOP
+		seg8.occUp = headOcc & signal4.aspectActual = stop : completeTrainOcc;
+		
+		-- train moves on with head if train is present and signal is GO
+		seg8.occUp = completeTrainOcc & signal4.aspectActual = go : tailOcc;
+		
+		-- train stays here if train is present and signal is STOP
+		seg8.occUp = completeTrainOcc & signal4.aspectActual = stop : completeTrainOcc;
+		
+		-- train tail leaves if tail is present
+		seg8.occUp = tailOcc : free;
+		
+		TRUE: seg8.occUp;
+	esac;
+	
+	
+	
+	-- seg9
+	-- down, CASE 1b: from seg8 to END, entry guarded by signal3
+	next(seg9.occDown) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg9.occDown = free & seg8.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train and signal is GO
+		seg9.occDown = free & seg8.occDown = headOcc & signal3.aspectActual = go: {headOcc, free};
+		
+		-- train head enters if previous segment has complete train and signal is GO
+		seg9.occDown = free & seg8.occDown = completeTrainOcc & signal3.aspectActual = go: headOcc;
+		
+		-- stays free if signal is stop
+		seg9.occDown = free & signal3.aspectActual = stop : free;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg9.occDown = free & seg8.occDown = tailOcc : errorOcc;
+		
+		-- end of the line, train collects here
+		seg9.occDown = headOcc : completeTrainOcc;
+		
+		-- end of the line, train stays here
+		seg9.occDown = completeTrainOcc : completeTrainOcc;
+		
+		-- errorOcc if this segment has a tail, as due to end of the line there's nowhere to move
+		seg9.occDown = tailOcc : errorOcc;
+		
+		TRUE: seg9.occDown;
+	esac;
+	
+	-- up, CASE 1a: from END to seg8, no signals (start of the line)
+	next(seg9.occUp) := case
+		-- stays free as no train can enter from out of bounds
+		seg9.occUp = free : free;
+		
+		-- errorOcc if head of a train is here, as the tail has no previous segment to be on
+		seg9.occUp = headOcc : errorOcc;
+		
+		-- train moves on with head if train is present
+		seg9.occUp = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg9.occUp = tailOcc : free; 
+		
+		TRUE: seg9.occUp;
+	esac;
+	
+	
+	
+	-- seg10
+	-- down, CASE 5b: from point1-branch to seg11, no signals
+	next(seg10.occDown) := case
+		-- stays free if previous point-segment doesnt have a train or has error
+		seg10.occDown = free & point1.occDown in {free, errorOcc} : free;
+		
+		-- stays free if previous point position is not REVERSE
+		seg10.occDown = free & point1.aspectActual != reverse : free;
+		
+		-- train head may enter if previous point-segment has head of a train and point position is REVERSE
+		seg10.occDown = free & point1.occDown = headOcc & point1.aspectActual = reverse : {headOcc, free};
+		
+		-- train head enters if previous point-segment has complete train and point position is REVERSE
+		seg10.occDown = free & point1.occDown = completeTrainOcc & point1.aspectActual = reverse : headOcc;
+		
+		-- errorOcc if previous point-segment has tail but this segment has no head and point position is REVERSE
+		seg10.occDown = free & point1.occDown = tailOcc & point1.aspectActual = reverse : errorOcc;
+		
+		-- train head leaves or train collects here if head present and point position is REVERSE
+		seg10.occDown = headOcc & point1.aspectActual = reverse : {completeTrainOcc, tailOcc};
+		
+		-- errorOcc if head present and point position is NOT REVERSE
+		seg10.occDown = headOcc & point1.aspectActual != reverse : errorOcc;
+		
+		-- train moves on with head if train is present
+		seg10.occDown = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg10.occDown = tailOcc : free;
+		
+		TRUE: seg10.occDown;
+	esac;
+	
+	-- up, CASE 3: from seg11 to point1, entry guarded by signal8
+	next(seg10.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg10.occUp = free & seg11.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train and signal is GO 
+		seg10.occUp = free & seg11.occUp = headOcc & signal8.aspectActual = go : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train and signal is GO
+		seg10.occUp = free & seg11.occUp = completeTrainOcc & signal8.aspectActual = go : headOcc;
+		
+		-- stays free if signal is stop
+		seg10.occUp = free & signal8.aspectActual = stop : free;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg10.occUp = free & seg11.occUp = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present
+		seg10.occUp = headOcc : {completeTrainOcc, tailOcc};
+		
+		-- train moves on with head if train is present
+		seg10.occUp = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg10.occUp = tailOcc : free;
+		
+		TRUE: seg10.occUp;
+	esac;
+	
+	
+	
+	-- seg11 (main)
+	-- down, CASE 4: from seg10 to seg12, exit guarded by signal7
+	next(seg11.occDown) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg11.occDown = free & seg10.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg11.occDown = free & seg10.occDown = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg11.occDown = free & seg10.occDown = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg11.occDown = free & seg10.occDown = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present and signal is GO
+		seg11.occDown = headOcc & signal7.aspectActual = go : {completeTrainOcc, tailOcc};
+		
+		-- train collects here if head present and signal is STOP
+		seg11.occDown = headOcc & signal7.aspectActual = stop : completeTrainOcc;
+		
+		-- train moves on with head if train is present and signal is GO
+		seg11.occDown = completeTrainOcc & signal7.aspectActual = go : tailOcc;
+		
+		-- train stays here if train is present and signal is STOP
+		seg11.occDown = completeTrainOcc & signal7.aspectActual = stop : completeTrainOcc;
+		
+		-- train tail leaves if tail is present
+		seg11.occDown = tailOcc : free;
+		
+		TRUE: seg11.occDown;
+	esac;
+	
+	-- up: to seg10, guarded by signal8
+	-- up, CASE 4: from seg12 to seg10, exit guarded by signal8
+	next(seg11.occUp) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg11.occUp = free & seg12.occUp in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train
+		seg11.occUp = free & seg12.occUp = headOcc : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train
+		seg11.occUp = free & seg12.occUp = completeTrainOcc : headOcc;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg11.occUp = free & seg12.occUp = tailOcc : errorOcc;
+		
+		-- train head leaves or train collects here if head present and signal is GO
+		seg11.occUp = headOcc & signal8.aspectActual = go : {completeTrainOcc, tailOcc};
+		
+		-- train collects here if head present and signal is STOP
+		seg11.occUp = headOcc & signal8.aspectActual = stop : completeTrainOcc;
+		
+		-- train moves on with head if train is present and signal is GO
+		seg11.occUp = completeTrainOcc & signal8.aspectActual = go : tailOcc;
+		
+		-- train stays here if train is present and signal is STOP
+		seg11.occUp = completeTrainOcc & signal8.aspectActual = stop : completeTrainOcc;
+		
+		-- train tail leaves if tail is present
+		seg11.occUp = tailOcc : free;
+		
+		TRUE: seg11.occUp;
+	esac;
+	
+	
+	
+	-- seg12
+	-- down, CASE 1b: from seg11 to END, entry guarded by signal7
+	next(seg12.occDown) := case
+		-- stays free if previous segment doesnt have a train or has error
+		seg12.occDown = free & seg11.occDown in {free, errorOcc} : free;
+		
+		-- train head may enter if previous segment has head of a train and signal is GO
+		seg12.occDown = free & seg11.occDown = headOcc & signal7.aspectActual = go : {headOcc, free};
+		
+		-- train head enters if previous segment has complete train and signal is GO
+		seg12.occDown = free & seg11.occDown = completeTrainOcc & signal7.aspectActual = go : headOcc;
+		
+		-- stays free if signal is stop
+		seg12.occDown = free & signal7.aspectActual = stop : free;
+		
+		-- errorOcc if previous segment has tail but this segment has no head
+		seg12.occDown = free & seg11.occDown = tailOcc : errorOcc;
+		
+		-- end of the line, train collects here
+		seg12.occDown = headOcc : completeTrainOcc;
+		
+		-- end of the line, train stays here
+		seg12.occDown = completeTrainOcc : completeTrainOcc;
+		
+		-- errorOcc if this segment has a tail, as due to end of the line there's nowhere to move
+		seg12.occDown = tailOcc : errorOcc;
+		
+		TRUE: seg12.occDown;
+	esac;
+	
+	-- up, CASE 1a: from END to seg11, no signals (start of the line)
+	next(seg12.occUp) := case
+		-- stays free as no train can enter from out of bounds
+		seg12.occUp = free : free;
+		
+		-- errorOcc if head of a train is here, as the tail has no previous segment to be on
+		seg12.occUp = headOcc : errorOcc;
+		
+		-- train moves on with head if train is present
+		seg12.occUp = completeTrainOcc : tailOcc;
+		
+		-- train tail leaves if tail is present
+		seg12.occUp = tailOcc : free; 
+		
+		TRUE: seg12.occUp;
+	esac;
+
+
+-- Train constraints (by example; direction UP is analogous unless specified otherwise):
+-- - When seg1.occDown headOcc:
+--    - seg0.occDown shall be tailOcc or errorOcc
+--    - seg2.occDown shall not be headOcc
+-- 
+-- - When seg1.occDown completeTrainOcc:
+--    - seg0.occDown shall not be tailOcc
+--    - seg2.occDown shall not be headOcc
+--    - we do not check that neighbouring segments do not also have completeTrainOcc, as that
+--      is sometimes possible due to signals in aspect stop. -> hopefully can't happen 
+--      with how train movement is defined in the next functions. This is worth trying to verify
+--      with a property! -> currently checked by 
+-- 
+-- - When seg1.occDown tailOcc:
+--    - seg0.occDown shall not be tailOcc
+--    - seg2.occDown shall be headOcc or errorOcc
+INVAR
+	-- DOWN: head -> previous segment shall be tail or error, and next segment shall not be head
+	  (seg0.occDown = headOcc ->                                           (seg1.occDown != headOcc))
+	& (seg1.occDown = headOcc ->   (seg0.occDown in {tailOcc, errorOcc}   & seg2.occDown != headOcc))
+	& (seg2.occDown = headOcc ->   (seg1.occDown in {tailOcc, errorOcc}   & seg3.occDown != headOcc))
+	& (seg3.occDown = headOcc ->   (seg2.occDown in {tailOcc, errorOcc}   & seg4.occDown != headOcc))
+	& (seg4.occDown = headOcc ->   (seg3.occDown in {tailOcc, errorOcc}   & seg5.occDown != headOcc))
+	& (seg5.occDown = headOcc ->   (seg4.occDown in {tailOcc, errorOcc}   & point1.occDown != headOcc))
+	& (point1.occDown = headOcc -> (seg5.occDown in {tailOcc, errorOcc}   & seg7.occDown != headOcc & seg10.occDown != headOcc))
+	& (seg7.occDown = headOcc ->   (point1.occDown in {tailOcc, errorOcc} & seg8.occDown != headOcc))
+	& (seg8.occDown = headOcc ->   (seg7.occDown in {tailOcc, errorOcc}   & seg9.occDown != headOcc))
+	& (seg9.occDown = headOcc ->   (seg8.occDown in {tailOcc, errorOcc}))
+	& (seg10.occDown = headOcc ->  (point1.occDown in {tailOcc, errorOcc} & seg11.occDown != headOcc))
+	& (seg11.occDown = headOcc ->  (seg10.occDown in {tailOcc, errorOcc}  & seg12.occDown != headOcc))
+	& (seg12.occDown = headOcc ->  (seg11.occDown in {tailOcc, errorOcc}))
+	-- UP: head -> previous segment shall be tail or error, and next segment shall not be head
+	& (seg0.occUp = headOcc ->     (seg1.occUp in {tailOcc, errorOcc}))
+	& (seg1.occUp = headOcc ->     (seg2.occUp in {tailOcc, errorOcc}   & seg0.occUp != headOcc))
+	& (seg2.occUp = headOcc ->     (seg3.occUp in {tailOcc, errorOcc}   & seg1.occUp != headOcc))
+	& (seg3.occUp = headOcc ->     (seg4.occUp in {tailOcc, errorOcc}   & seg2.occUp != headOcc))
+	& (seg4.occUp = headOcc ->     (seg5.occUp in {tailOcc, errorOcc}   & seg3.occUp != headOcc))
+	& (seg5.occUp = headOcc ->     (point1.occUp in {tailOcc, errorOcc} & seg4.occUp != headOcc))
+	& (point1.occUp = headOcc ->   ((seg7.occUp in {tailOcc, errorOcc} | seg10.occUp in {tailOcc, errorOcc}) & seg5.occUp != headOcc))
+	& (seg7.occUp = headOcc ->     (seg8.occUp in {tailOcc, errorOcc}   & point1.occUp != headOcc))
+	& (seg8.occUp = headOcc ->     (seg9.occUp in {tailOcc, errorOcc}   & seg7.occUp != headOcc))
+	& (seg10.occUp = headOcc ->    (seg11.occUp in {tailOcc, errorOcc}  & point1.occUp != headOcc))
+	& (seg11.occUp = headOcc ->    (seg12.occUp in {tailOcc, errorOcc}  & seg10.occUp != headOcc))
+	& (seg12.occUp = headOcc ->                                          (seg11.occUp != headOcc))
+	
+	-- DOWN: completeTrain -> previous segment shall not be tailOcc, and next segment shall not be headOcc
+    & (seg0.occDown = completeTrainOcc ->                               (seg1.occDown != headOcc))
+	& (seg1.occDown = completeTrainOcc ->   (seg0.occDown != tailOcc   & seg2.occDown != headOcc))
+	& (seg2.occDown = completeTrainOcc ->   (seg1.occDown != tailOcc   & seg3.occDown != headOcc))
+	& (seg3.occDown = completeTrainOcc ->   (seg2.occDown != tailOcc   & seg4.occDown != headOcc))
+	& (seg4.occDown = completeTrainOcc ->   (seg3.occDown != tailOcc   & seg5.occDown != headOcc))
+	& (seg5.occDown = completeTrainOcc ->   (seg4.occDown != tailOcc   & point1.occDown != headOcc))
+	& (point1.occDown = completeTrainOcc -> (seg5.occDown != tailOcc   & seg7.occDown != headOcc & seg10.occDown != headOcc))
+	& (seg7.occDown = completeTrainOcc ->   (point1.occDown != tailOcc & seg8.occDown != headOcc))
+	& (seg8.occDown = completeTrainOcc ->   (seg7.occDown != tailOcc   & seg9.occDown != headOcc))
+	& (seg9.occDown = completeTrainOcc ->   (seg8.occDown != tailOcc))
+	& (seg10.occDown = completeTrainOcc ->  (point1.occDown != tailOcc & seg11.occDown != headOcc))
+	& (seg11.occDown = completeTrainOcc ->  (seg10.occDown != tailOcc  & seg12.occDown != headOcc))
+	& (seg12.occDown = completeTrainOcc ->  (seg11.occDown != tailOcc))
+	-- UP: head -> previous segment shall not be tailOcc, and next segment shall not be headOcc
+	& (seg0.occUp = completeTrainOcc ->     (seg1.occUp != tailOcc))
+	& (seg1.occUp = completeTrainOcc ->     (seg2.occUp != tailOcc   & seg0.occUp   != headOcc))
+	& (seg2.occUp = completeTrainOcc ->     (seg3.occUp != tailOcc   & seg1.occUp   != headOcc))
+	& (seg3.occUp = completeTrainOcc ->     (seg4.occUp != tailOcc   & seg2.occUp   != headOcc))
+	& (seg4.occUp = completeTrainOcc ->     (seg5.occUp != tailOcc   & seg3.occUp   != headOcc))
+	& (seg5.occUp = completeTrainOcc ->     (point1.occUp != tailOcc & seg4.occUp   != headOcc))
+	& (point1.occUp = completeTrainOcc ->   ((seg7.occUp != tailOcc  & seg10.occUp != tailOcc) & seg5.occUp != headOcc))
+	& (seg7.occUp = completeTrainOcc ->     (seg8.occUp  != tailOcc  & point1.occUp != headOcc))
+	& (seg8.occUp = completeTrainOcc ->     (seg9.occUp  != tailOcc  & seg7.occUp   != headOcc))
+	& (seg10.occUp = completeTrainOcc ->    (seg11.occUp != tailOcc  & point1.occUp != headOcc))
+	& (seg11.occUp = completeTrainOcc ->    (seg12.occUp != tailOcc  & seg10.occUp  != headOcc))
+	& (seg12.occUp = completeTrainOcc ->                              (seg11.occUp  != headOcc))
+	
+	-- DOWN: tail -> next segment has head or error, and previous segment shall not be tailOcc
+	& (seg0.occDown = tailOcc ->   (seg1.occDown in {headOcc, errorOcc}))
+	& (seg1.occDown = tailOcc ->   (seg2.occDown in {headOcc, errorOcc}   & seg0.occDown   != tailOcc))
+	& (seg2.occDown = tailOcc ->   (seg3.occDown in {headOcc, errorOcc}   & seg1.occDown   != tailOcc))
+	& (seg3.occDown = tailOcc ->   (seg4.occDown in {headOcc, errorOcc}   & seg2.occDown   != tailOcc))
+	& (seg4.occDown = tailOcc ->   (seg5.occDown in {headOcc, errorOcc}   & seg3.occDown   != tailOcc))
+	& (seg5.occDown = tailOcc ->   (point1.occDown in {headOcc, errorOcc} & seg4.occDown   != tailOcc))
+	& (point1.occDown = tailOcc -> ((seg7.occDown in {headOcc, errorOcc} | seg10.occDown in {headOcc, errorOcc}) & seg5.occDown != tailOcc))
+	& (seg7.occDown = tailOcc ->   (seg8.occDown in {headOcc, errorOcc}   & point1.occDown != tailOcc))
+	& (seg8.occDown = tailOcc ->   (seg9.occDown in {headOcc, errorOcc}   & seg7.occDown   != tailOcc))
+	& (seg10.occDown = tailOcc ->  (seg11.occDown in {headOcc, errorOcc}  & point1.occDown != tailOcc))
+	& (seg11.occDown = tailOcc ->  (seg12.occDown in {headOcc, errorOcc}  & seg10.occDown  != tailOcc))
+	& (seg12.occDown = tailOcc ->                                           seg11.occDown  != tailOcc)
+	-- UP: tail -> next segment has head or error, and previous segment shall not be tailOcc
+	& (seg0.occUp = tailOcc ->     (seg1.occUp != tailOcc))
+	& (seg1.occUp = tailOcc ->     (seg0.occUp in {headOcc, errorOcc}   & seg2.occUp   != tailOcc))
+	& (seg2.occUp = tailOcc ->     (seg1.occUp in {headOcc, errorOcc}   & seg3.occUp   != tailOcc))
+	& (seg3.occUp = tailOcc ->     (seg2.occUp in {headOcc, errorOcc}   & seg4.occUp   != tailOcc))
+	& (seg4.occUp = tailOcc ->     (seg3.occUp in {headOcc, errorOcc}   & seg5.occUp   != tailOcc))
+	& (seg5.occUp = tailOcc ->     (seg4.occUp in {headOcc, errorOcc}   & point1.occUp != tailOcc))
+	& (point1.occUp = tailOcc ->   (seg5.occUp in {headOcc, errorOcc}   & seg7.occUp   != tailOcc & seg10.occUp != tailOcc))
+	& (seg7.occUp = tailOcc ->     (point1.occUp in {headOcc, errorOcc} & seg8.occUp   != tailOcc))
+	& (seg8.occUp = tailOcc ->     (seg7.occUp in {headOcc, errorOcc}   & seg9.occUp   != tailOcc))
+	& (seg9.occUp = tailOcc ->     (seg8.occUp in {headOcc, errorOcc}))
+	& (seg10.occUp = tailOcc ->    (point1.occUp in {headOcc, errorOcc} & seg11.occUp  != tailOcc))
+	& (seg11.occUp = tailOcc ->    (seg10.occUp in {headOcc, errorOcc}  & seg12.occUp  != tailOcc))
+	& (seg12.occUp = tailOcc ->    (seg11.occUp in {headOcc, errorOcc}))
+
+
+
+-- ############# PROPERTIES FOR MODULE TrackState #############
+
+
+INVARSPEC 
+	NAME occUpNoErrors :=
+	  !(seg1.occUp = errorOcc | 
+		seg2.occUp = errorOcc |
+		seg3.occUp = errorOcc |
+		seg4.occUp = errorOcc |
+		seg5.occUp = errorOcc |
+		point1.occUp = errorOcc |
+		seg7.occUp = errorOcc |
+		seg8.occUp = errorOcc |
+		seg9.occUp = errorOcc |
+		seg10.occUp = errorOcc |
+		seg11.occUp = errorOcc |
+		seg12.occUp = errorOcc);
+
+INVARSPEC 
+	NAME occDownNoErrors :=
+	  !(seg1.occDown = errorOcc | 
+		seg2.occDown = errorOcc |
+		seg3.occDown = errorOcc |
+		seg4.occDown = errorOcc |
+		seg5.occDown = errorOcc |
+		point1.occDown = errorOcc |
+		seg7.occDown = errorOcc |
+		seg8.occDown = errorOcc |
+		seg9.occDown = errorOcc |
+		seg10.occDown = errorOcc |
+		seg11.occDown = errorOcc |
+		seg12.occDown = errorOcc);
+
+-- if one sets constraints to be too restrictive, it can happen that there are no possible 
+-- executions/runs at all. nuXmv will then report almost all properties to just be satisfied!
+-- One way to check that there are paths at all is to specify a property that is contradictory,
+-- or *should be* contradictory - if we have any execution, it shall not be satisfiable.
+-- Needs to be adjusted based on scenario!!
+-- If you want to test if your constraints are too restrictive, choose a segment (here: seg4)
+-- that will be occupied sometime during execution and then become free forever.
+-- Then enable the two properties below. If both SanityCheckPositive and SanityCheckNegative pass, 
+-- your constraints are too strong/too restrictive.
+--LTLSPEC NAME SanityCheckPositive := F(G(seg4.occDown = free & seg4.occUp = free));
+--LTLSPEC NAME SanityCheckNegative := !(F(G(seg4.occDown = free & seg4.occUp = free)));
+
+-- another, and perhaps better way to check the problem described above, is to run 
+-- the nuXmv command "print_fair_states" after (re)ordering and verification.
+-- if it returns "0" for fair states, then the INVAR constraints are too restrictive,
+-- or the initial state is invalid (i.e., contradicts the INVAR constraints).
+
+
+
+LTLSPEC
+	NAME trainReachesSeg4DownEventually :=
+		F(seg4.occDown = completeTrainOcc | seg4.occDown = headOcc);
+		
+LTLSPEC
+	NAME trainReachesSeg8DownEventuallyForever :=
+		F G(seg8.occDown = completeTrainOcc);
+
+LTLSPEC
+	NAME trainReachesSeg1UpEventuallyForever :=
+		F G(seg1.occUp = completeTrainOcc);
+
+INVARSPEC
+	NAME seg9StaysClear :=
+		(seg9.occDown = free & seg9.occUp = free);
+
+INVARSPEC
+	NAME NoHeadToHeadCollisions := (
+		(seg0.occDown != free -> seg0.occUp = free) & (seg0.occUp != free -> seg0.occDown = free)
+		& (seg1.occDown != free -> seg1.occUp = free) & (seg1.occUp != free -> seg1.occDown = free)
+		& (seg2.occDown != free -> seg2.occUp = free) & (seg2.occUp != free -> seg2.occDown = free)
+		& (seg3.occDown != free -> seg3.occUp = free) & (seg3.occUp != free -> seg3.occDown = free)
+		& (seg4.occDown != free -> seg4.occUp = free) & (seg4.occUp != free -> seg4.occDown = free)
+		& (seg5.occDown != free -> seg5.occUp = free) & (seg5.occUp != free -> seg5.occDown = free)
+		& (point1.occDown != free -> point1.occUp = free) & (point1.occUp != free -> point1.occDown = free)
+		& (seg7.occDown != free -> seg7.occUp = free) & (seg7.occUp != free -> seg7.occDown = free)
+		& (seg8.occDown != free -> seg8.occUp = free) & (seg8.occUp != free -> seg8.occDown = free)
+		& (seg9.occDown != free -> seg9.occUp = free) & (seg9.occUp != free -> seg9.occDown = free)
+		& (seg10.occDown != free -> seg10.occUp = free) & (seg10.occUp != free -> seg10.occDown = free)
+		& (seg11.occDown != free -> seg11.occUp = free) & (seg11.occUp != free -> seg11.occDown = free)
+		& (seg12.occDown != free -> seg12.occUp = free) & (seg12.occUp != free -> seg12.occDown = free)
+	);
+
+-- this is a bit tricky to formulate, what should work is:
+-- if a section has a train tail or complete train, then the previous section shall not have a train head or complete train, 
+-- *unless* there's a signal in aspect stop between them, or a point aspect means they would not be able to collide.
+INVARSPEC
+	NAME NoHeadToTailCollisionsDown := (
+		((seg1.occDown in {tailOcc, completeTrainOcc}) ->      !(seg0.occDown   in {completeTrainOcc, headOcc}))
+		& ((seg2.occDown in {tailOcc, completeTrainOcc}) ->   (!(seg1.occDown   in {completeTrainOcc, headOcc}) | signal1.aspectActual = stop))
+		& ((seg3.occDown in {tailOcc, completeTrainOcc}) ->    !(seg2.occDown   in {completeTrainOcc, headOcc}))
+		& ((seg4.occDown in {tailOcc, completeTrainOcc}) ->    !(seg3.occDown   in {completeTrainOcc, headOcc}))
+		& ((seg5.occDown in {tailOcc, completeTrainOcc}) ->   (!(seg4.occDown   in {completeTrainOcc, headOcc}) | signal2.aspectActual = stop))
+		& ((point1.occDown in {tailOcc, completeTrainOcc}) ->  !(seg5.occDown   in {completeTrainOcc, headOcc}))
+		& ((seg7.occDown in {tailOcc, completeTrainOcc}) ->   (!(point1.occDown in {completeTrainOcc, headOcc}) | point1.aspectActual != normal))
+		& ((seg8.occDown in {tailOcc, completeTrainOcc}) ->    !(seg7.occDown   in {completeTrainOcc, headOcc}))
+		& ((seg9.occDown in {tailOcc, completeTrainOcc}) ->   (!(seg8.occDown   in {completeTrainOcc, headOcc}) | signal3.aspectActual = stop))
+		& ((seg10.occDown in {tailOcc, completeTrainOcc}) ->  (!(point1.occDown in {completeTrainOcc, headOcc}) | point1.aspectActual != reverse))
+		& ((seg11.occDown in {tailOcc, completeTrainOcc}) ->   !(seg10.occDown  in {completeTrainOcc, headOcc}))
+		& ((seg12.occDown in {tailOcc, completeTrainOcc}) ->  (!(seg11.occDown  in {completeTrainOcc, headOcc}) | signal7.aspectActual = stop))
+	);
+
+
+INVARSPEC
+	NAME NoHeadToTailCollisionsUp := (
+		((seg0.occUp in {tailOcc, completeTrainOcc}) ->     (!(seg1.occUp in {completeTrainOcc, headOcc}) | signal6.aspectActual = stop))
+		& ((seg1.occUp in {tailOcc, completeTrainOcc}) ->    !(seg2.occUp in {completeTrainOcc, headOcc}))
+		& ((seg2.occUp in {tailOcc, completeTrainOcc}) ->    !(seg3.occUp in {completeTrainOcc, headOcc}))
+		& ((seg3.occUp in {tailOcc, completeTrainOcc}) ->   (!(seg4.occUp in {completeTrainOcc, headOcc}) | signal5.aspectActual = stop))
+		& ((seg4.occUp in {tailOcc, completeTrainOcc}) ->    !(seg5.occUp in {completeTrainOcc, headOcc}))
+		& ((seg5.occUp in {tailOcc, completeTrainOcc}) ->    !(point1.occUp in {completeTrainOcc, headOcc}))
+			-- Point1: there shall be no train on either of the possible segments trains could enter point1 from, regardless of point position
+		& ((point1.occUp in {tailOcc, completeTrainOcc}) -> !(seg7.occUp in {completeTrainOcc, headOcc} | seg10.occUp in {completeTrainOcc, headOcc}))
+		& ((seg7.occUp in {tailOcc, completeTrainOcc}) ->   (!(seg8.occUp in {completeTrainOcc, headOcc}) | signal4.aspectActual = stop))
+		& ((seg8.occUp in {tailOcc, completeTrainOcc}) ->    !(seg9.occUp in {completeTrainOcc, headOcc}))
+		& ((seg10.occUp in {tailOcc, completeTrainOcc}) ->  (!(seg11.occUp in {completeTrainOcc, headOcc}) | signal8.aspectActual = stop))
+		& ((seg11.occUp in {tailOcc, completeTrainOcc}) ->   !(seg12.occUp in {completeTrainOcc, headOcc}))
+	);
+
+
+-- main module has to be here, below the property specification, as otherwise we would have to write
+-- tState.segX. ... instead of just segX. ... in the properties.
+-- i.e., we want to write the properties in scope of the trackstate module.
+
+
+-- main module
+MODULE main
+VAR
+	r0Mode : {free, marked, allocating, locked, occupied};
+	r0 : RouteState(0, r0Mode);
+	
+	r1Mode : {free, marked, allocating, locked, occupied};
+	r1 : RouteState(1, r1Mode);
+	
+	r2Mode : {free, marked, allocating, locked, occupied};
+	r2 : RouteState(2, r2Mode);
+
+	tState : TrackState;
+
+ASSIGN
+	init(r0Mode) := free;
+	init(r1Mode) := free;
+	init(r2Mode) := free;
+
+	next(r0Mode) := case
+        r0Mode = free
+		& (tState.seg1.occDown = completeTrainOcc | tState.seg1.occDown = tailOcc)
+        & (tState.seg8.occDown = free | tState.seg9.occDown = free)
+		: marked;
+
+        r0Mode = marked
+        & (r1Mode != allocating | r1Mode != locked)
+        & (r2Mode != allocating | r2Mode != locked)
+		& (tState.seg1.occDown = completeTrainOcc | tState.seg1.occDown = tailOcc)
+        & (tState.signal1.aspectActual = stop & tState.signal2.aspectActual = stop & tState.signal3.aspectActual = stop)
+        : allocating;
+
+        r0Mode = allocating
+        & tState.signal1.aspectActual = go
+		& tState.seg1.occDown = completeTrainOcc & tState.seg2.occDown = free
+        : locked;
+
+        r0Mode = locked
+        & (
+			(tState.seg1.occDown = tailOcc & tState.seg2.occDown = headOcc)
+			|
+        	(tState.signal2.aspectActual = go & tState.point1.occDown = free & tState.point1.aspectActual = normal)
+		)
+        : occupied;
+
+        r0Mode = occupied
+        & (tState.seg8.occDown = completeTrainOcc | tState.seg9.occDown = headOcc)
+        : free;
+
+        TRUE : r0Mode;
+    esac;
+
+	next(r1Mode) := case
+        r1Mode = free
+		& (tState.seg11.occUp = completeTrainOcc | tState.seg11.occUp = tailOcc)
+        & (tState.seg1.occUp = free | tState.seg0.occUp = free)
+		: marked;
+
+        r1Mode = marked
+        & (r0Mode != allocating | r0Mode != locked)
+        & (r2Mode != allocating | r2Mode != locked)
+		& (tState.seg11.occUp = completeTrainOcc | tState.seg11.occUp = tailOcc)
+        & (tState.signal8.aspectActual = stop & tState.signal5.aspectActual = stop & tState.signal6.aspectActual = stop)
+        : allocating;
+
+        r1Mode = allocating
+        & tState.signal8.aspectActual = go
+		& tState.seg11.occUp = completeTrainOcc & tState.seg10.occUp = free
+        : locked;
+
+        r1Mode = locked
+        & (
+			(tState.seg11.occUp = tailOcc & tState.seg10.occUp = headOcc)
+			|
+			(tState.point1.occUp = free & tState.point1.aspectActual = reverse)
+		)
+        : occupied;
+
+        r1Mode = occupied
+        & (tState.seg1.occUp = completeTrainOcc | tState.seg0.occUp = headOcc)
+        : free;
+
+        TRUE : r1Mode;
+    esac;
+
+	next(r2Mode) := case
+        r2Mode = free
+		& (tState.seg1.occDown = completeTrainOcc | tState.seg1.occDown = tailOcc)
+        & (tState.seg11.occDown = free | tState.seg12.occDown = free)
+		: marked;
+
+        r2Mode = marked
+        & (r0Mode != allocating | r0Mode != locked)
+        & (r1Mode != allocating | r1Mode != locked)
+		& (tState.seg1.occDown = completeTrainOcc | tState.seg1.occDown = tailOcc)
+        & (tState.signal1.aspectActual = stop & tState.signal2.aspectActual = stop & tState.signal7.aspectActual = stop)
+        : allocating;
+
+        r2Mode = allocating
+        & tState.signal1.aspectActual = go
+		& tState.seg1.occDown = completeTrainOcc & tState.seg2.occDown = free
+        : locked;
+
+        r2Mode = locked
+        & (
+			(tState.seg1.occDown = tailOcc & tState.seg2.occDown = headOcc)
+			|
+        	(tState.signal2.aspectActual = go & tState.point1.occDown = free & tState.point1.aspectActual = reverse)
+		)
+        : occupied;
+
+        r2Mode = occupied
+        & (tState.seg11.occDown = completeTrainOcc | tState.seg12.occDown = headOcc)
+        : free;
+
+        TRUE : r2Mode;
+    esac;
+
+
+LTLSPEC
+	NAME route0IsReleasedEventually :=
+		-- G(r0Mode != free -> F (r0Mode = free));
+		F G(r0Mode = free);
+
+LTLSPEC
+	NAME route1IsReleasedEventually :=
+		-- G(r1Mode != free -> F r1Mode = free);
+		F G(r1Mode = free);
+
+LTLSPEC
+	NAME route2IsReleasedEventyally :=
+		-- G(r2Mode != free -> F r2Mode = free);
+		F G(r2Mode = free);

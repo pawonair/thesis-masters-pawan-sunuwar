@@ -1,0 +1,25 @@
+digraph G {
+	rankdir=LR
+
+	"block1.down-point5.stem-signal9" [label="signal9", shape=proteinstab, color=red]
+	"point5.reverse-point2.reverse" [label="", shape=point]
+	"block2.up-point2.stem-signal4" [label="signal4", shape=proteinstab, color=red]
+	"block5.down-point2.normal-signal5" [label="signal5", shape=proteinstab, color=red]
+	"signal6-block5.up" [label="signal6", shape=proteinstab, color=red]
+	"signal3-block2.down" [label="signal3", shape=proteinstab, color=red]
+	"signal10-block1.up" [label="signal10", shape=proteinstab, color=red]
+	"block6.up-point5.normal-signal14" [label="signal14", shape=proteinstab, color=red]
+	"signal15-block6.down" [label="signal15", shape=proteinstab, color=red]
+
+	subgraph undirected {
+		edge [dir=none]
+		"block1.down-point5.stem-signal9" -> "point5.reverse-point2.reverse" [label="point5.reverse", color=orange4]
+		"block1.down-point5.stem-signal9" -> "signal10-block1.up" [label="block1", color=black]
+		"block1.down-point5.stem-signal9" -> "block6.up-point5.normal-signal14" [label="point5.normal", color=orange4]
+		"point5.reverse-point2.reverse" -> "block2.up-point2.stem-signal4" [label="point2.reverse", color=orangered]
+		"block2.up-point2.stem-signal4" -> "signal3-block2.down" [label="block2", color=black]
+		"block2.up-point2.stem-signal4" -> "block5.down-point2.normal-signal5" [label="point2.normal", color=orangered]
+		"block5.down-point2.normal-signal5" -> "signal6-block5.up" [label="block5", color=black]
+		"block6.up-point5.normal-signal14" -> "signal15-block6.down" [label="block6", color=black]
+	}
+}

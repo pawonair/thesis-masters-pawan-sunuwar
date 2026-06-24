@@ -1,0 +1,73 @@
+module Cross
+  boards
+    master 0xDA000D680052EF
+      features 
+        0x03:0x14  # seckack on, 200ms
+        0x6E:0x00  # track output default off
+      end
+    lightcontrol 0x45000D6B0083EC
+    onecontrol 0x05000D7500DBED
+  end
+  
+  segments master
+    seg5 0x04 length 11.95cm
+    seg6 0x05 length 61.4cm
+    seg7 0x06 length 10cm
+    seg8 0x07 length 13cm
+    seg9 0x08 length 8cm
+    seg10 0x09 length 70.75cm
+    seg11 0x0A length 15.85cm
+    seg17 0x10 length 11.3cm
+    seg18 0x11 length 20.2cm
+    seg19 0x12 length 40.8cm
+    seg20 0x13 length 10.2cm
+    seg27 0x1A length 10cm
+    seg28 0x1B length 50cm
+    seg29 0x1C length 10cm
+  end
+  
+  signals lightcontrol
+    halt signal3 0x02
+    block signal4 0x03
+    block signal5 0x04
+    halt signal6 0x05
+    block signal9 0x08
+    halt signal10 0x09
+    block signal14 0x0B
+    halt signal15 0x0C
+  end
+
+  points onecontrol
+    point2 0x01 segment seg8 normal 0x01 reverse 0x00 initial normal
+    point5 0x04 segment seg17 normal 0x01 reverse 0x00 initial normal
+  end
+
+  blocks
+    # Regular blocks
+    block1 overlap seg18 main seg19 overlap seg20
+    block2 overlap seg5 main seg6 overlap seg7
+    block5 overlap seg9 main seg10 overlap seg11
+    block6 overlap seg29 main seg28 overlap seg27
+  end
+
+  layout
+  	# blocks
+    block1.down -- point5.stem
+    block2.up -- point2.stem
+    block5.down -- point2.straight
+    block6.up -- point5.straight
+
+    # signals
+    signal3 -- block2.down
+    signal4 -- block2.up
+    signal5 -- block5.down
+    signal6 -- block5.up
+    signal9 -- block1.down
+    signal10 -- block1.up
+    signal14 -- block6.up
+    signal15 -- block6.down
+
+    # points
+    point5.side -- point2.side
+  end
+end

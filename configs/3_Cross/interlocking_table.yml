@@ -1,0 +1,150 @@
+# Interlocking table
+interlocking-table:
+  - id: 0 #route0
+    source: signal4
+    destination: signal10
+    orientation: anticlockwise
+    path:
+      # point2.reverse -> point5.reverse -> block1
+      - id: seg8
+      - id: seg17
+      - id: seg18
+      - id: seg19
+      - id: seg20
+    sections:
+      - id: block1
+    length: 95,50cm
+    signals:
+      - id: signal4
+      - id: signal10
+    points:
+      - id: point2
+        position: reverse
+      - id: point5
+        position: reverse
+    conflicts:
+      - id: 1
+      - id: 2
+      - id: 3
+      - id: 4
+      - id: 5
+  - id: 1 #route1
+    source: signal4
+    destination: signal6
+    orientation: anticlockwise
+    path:
+      # point2.normal -> block5
+      - id: seg8
+      - id: seg9
+      - id: seg10
+      - id: seg11
+    sections:
+      - id: block5
+    length: 107,60cm
+    signals:
+      - id: signal4
+      - id: signal6
+    points:
+      - id: point2
+        position: normal
+    conflicts:
+      - id: 0
+      - id: 2
+      - id: 3
+  - id: 2 #route2
+    source: signal5
+    destination: signal3
+    orientation: clockwise
+    path:
+      # point2.normal -> block2
+      - id: seg8
+      - id: seg7
+      - id: seg6
+      - id: seg5
+    sections:
+      - id: block2
+    length: 96,35cm
+    signals:
+      - id: signal5
+      - id: signal3
+    points:
+      - id: point2
+        position: normal
+    conflicts:
+      - id: 0
+      - id: 1
+      - id: 3
+  - id: 3 #route3
+    source: signal9
+    destination: signal3
+    orientation: clockwise
+    path:
+      # point5.reverse -> point2.reverse -> block2
+      - id: seg17
+      - id: seg8
+      - id: seg7
+      - id: seg6
+      - id: seg5
+    sections:
+      - id: block2
+    length: 107,65cm
+    signals:
+      - id: signal9
+      - id: signal3
+    points:
+      - id: point5
+        position: reverse
+      - id: point2
+        position: reverse
+    conflicts:
+      - id: 0
+      - id: 1
+      - id: 2
+      - id: 4
+      - id: 5
+  - id: 4 #route4
+    source: signal9
+    destination: signal15
+    orientation: clockwise
+    path:
+      # point5.normal -> block6
+      - id: seg17
+      - id: seg27
+      - id: seg28
+      - id: seg29
+    sections:
+      - id: block6
+    length: 81,30cm
+    signals:
+      - id: signal9
+      - id: signal15
+    points:
+      - id: point5
+        position: normal
+    conflicts:
+      - id: 0
+      - id: 3
+      - id: 5
+  - id: 5 #route5
+    source: signal14
+    destination: signal10
+    orientation: anticlockwise
+    path:
+      # point5.normal -> block1
+      - id: seg17
+      - id: seg18
+      - id: seg19
+      - id: seg20
+    sections:
+      - id: block1
+    length: 82,50cm
+    signals:
+      - id: signal14
+      - id: signal10
+    points:
+      - id: point5
+        position: normal
+    conflicts:
+      - id: 0
+      - id: 3
+      - id: 4

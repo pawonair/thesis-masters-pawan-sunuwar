@@ -1,0 +1,36 @@
+# Interlocking table
+interlocking-table:
+  - id: 0 #route0
+    source: signal2
+    destination: signal4
+    orientation: anticlockwise
+    path:
+      # block2
+      - id: seg5
+      - id: seg6
+      - id: seg7
+    sections:
+      - id: block2
+    length: 83,35cm
+    signals:
+      - id: signal2
+      - id: signal4
+    points:
+    conflicts:
+  - id: 1 #route1
+    source: signal3
+    destination: signal1
+    orientation: clockwise
+    path:
+      # block3
+      - id: seg3
+      - id: seg2
+      - id: seg1
+    sections:
+      - id: block3
+    length: 79,45cm
+    signals:
+      - id: signal3
+      - id: signal1
+    points:
+    conflicts:

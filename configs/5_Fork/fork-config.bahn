@@ -1,0 +1,80 @@
+module Fork
+  boards
+    master 0xDA000D680052EF
+      features 
+        0x03:0x14  # seckack on, 200ms
+        0x6E:0x00  # track output default off
+      end
+    lightcontrol 0x45000D6B0083EC
+    onecontrol 0x05000D7500DBED
+  end
+  
+  segments master
+    seg5 0x04 length 11.95cm
+    seg6 0x05 length 61.4cm
+    seg7 0x06 length 10cm
+    seg8 0x07 length 13cm
+    seg9 0x08 length 8cm
+    seg10 0x09 length 70.75cm
+    seg11 0x0A length 15.85cm
+    seg14 0x0D length 8cm
+    seg15 0x0E length 56cm
+    seg16 0x0F length 8.15cm
+    seg18 0x11 length 20.2cm
+    seg19 0x12 length 40.8cm
+    seg20 0x13 length 10.2cm
+    seg21 0x14 length 10.9cm
+    seg23 0x16 length 5cm
+    seg24 0x17 length 50cm
+    seg25 0x18 length 8cm
+  end
+  
+  signals lightcontrol
+    halt signal3 0x02
+    block signal4 0x03
+    block signal5 0x04
+    halt signal6 0x05
+    block signal7 0x06
+    halt signal8 0x07
+    block signal9 0x08
+    block signal10 0x09
+    block signal11 0x0A
+    halt signal12 0x0B
+  end
+
+  points onecontrol
+    point2 0x01 segment seg8 normal 0x01 reverse 0x00 initial normal
+    point6 0x05 segment seg21 normal 0x01 reverse 0x00 initial normal
+  end
+
+  blocks
+    # Regular blocks
+    block1 overlap seg18 main seg19 overlap seg20
+    block2 overlap seg5 main seg6 overlap seg7 
+    block4 overlap seg14 main seg15 overlap seg16 
+    block5 overlap seg9 main seg10 overlap seg11
+	block6 overlap seg23 main seg24 overlap seg25
+  end
+
+  layout
+    # Clockwise reading direction
+    block1.up -- point6.stem
+    block1.down -- point2.side
+    block2.up -- point2.stem
+    block4.down -- point6.straight
+    block5.down -- point2.straight
+    block6.down -- point6.side
+
+    # signals
+    signal3 -- block2.down
+    signal4 -- block2.up
+    signal5 -- block5.down
+    signal6 -- block5.up
+    signal7 -- block4.down
+    signal8 -- block4.up
+    signal9 -- block1.down
+    signal10 -- block1.up
+    signal11 -- block6.down
+    signal12 -- block6.up
+  end
+end

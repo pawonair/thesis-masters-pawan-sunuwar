@@ -1,0 +1,18 @@
+-------------------------------------------------------------------------------
+-- Linear Section Module --
+-- Represents a section/segment in the track
+-- Inputs:- id_in: track segment identifier
+-------------------------------------------------------------------------------
+MODULE Linear(id_in)
+FROZENVAR
+	id : 0..29;
+VAR
+	occDown : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	occUp : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	mode : {AVAILABLE, EXLOCKED, USED};
+	prev : {PENDING, RELEASED};
+ASSIGN
+	init(id) := id_in;
+	init(mode) := AVAILABLE;
+	init(prev) := PENDING;
+-------------------------------------------------------------------------------

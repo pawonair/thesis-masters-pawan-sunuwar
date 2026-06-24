@@ -1,0 +1,54 @@
+module Straight
+  boards
+    master 0xDA000D680052EF
+      features 
+        0x03:0x14  # seckack on, 200ms
+        0x6E:0x00  # track output default off
+      end
+    lightcontrol 0x45000D6B0083EC
+    onecontrol 0x05000D7500DBED
+  end
+  
+  segments master
+    seg1 0x00 length 10cm
+    seg2 0x01 length 57.5cm
+    seg3 0x02 length 11.95cm
+    seg5 0x04 length 11.95cm
+    seg6 0x05 length 61.4cm
+    seg7 0x06 length 10cm
+  end
+  
+  signals lightcontrol
+    halt signal1 0x00
+    block signal2 0x01
+    block signal3 0x02
+    halt signal4 0x03
+  end
+
+  points onecontrol
+  end
+  
+  peripherals lightcontrol
+    onebit lanterns 0x13 port 0x00FF    # Exact port address is not essential
+  end
+
+  blocks
+    # Regular blocks
+    block2 overlap seg5 main seg6 overlap seg7
+    block3 overlap seg1 main seg2 overlap seg3
+  end
+
+  platforms
+  end
+
+  layout
+    # blocks
+    block2.down -- block3.up
+    
+    # signals
+    signal1 -- block3.down
+    signal2 -- block3.up
+    signal3 -- block2.down
+    signal4 -- block2.up
+  end
+end

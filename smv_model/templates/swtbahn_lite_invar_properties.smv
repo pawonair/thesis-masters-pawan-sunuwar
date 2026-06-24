@@ -1,0 +1,926 @@
+-------------------------------------------------------------------------------
+-- INVAR properties Definitions --
+-- Train constraints (example):
+-- 1. When seg5.occUp is HEADOCC:
+--    - point1.occUp shall be TAILOCC or ERROROCC
+--    - seg6.occUp shall not be HEADOCC
+-- 
+-- 2. When seg5.occUp is COMPLETETRAINOCC:
+--    - point1.occUp shall not be TAILOCC
+--    - seg6.occUp shall not be HEADOCC
+--    - we do not check that neighbouring segments do not also have
+--      COMPLETETRAINOCC, as that is sometimes possible due to signals
+--      in aspect STOP.
+--    - hopefully can't happen with how train movement is defined in the
+--      next functions.
+-- 
+-- 3. When seg5.occUp is TAILOCC:
+--    - point1.occUp shall not be TAILOCC
+--    - seg6.occUp shall be HEADOCC or ERROROCC
+-------------------------------------------------------------------------------
+-- Train movement
+INVAR
+	-- For whole interlocking track elements
+    -- UP: HEADOCC -> previous segment(s) shall be TAILOCC or ERROROCC,
+	--				  and next segment shall not be HEADOCC
+    (seg1.occUp = HEADOCC -> (point3.occSNR in {TAILOCC, ERROROCC} & seg2.occUp != HEADOCC))
+    & (seg2.occUp = HEADOCC -> (seg1.occUp in {TAILOCC, ERROROCC} & seg3.occUp != HEADOCC))
+	& (seg3.occUp = HEADOCC -> (seg2.occUp in {TAILOCC, ERROROCC} & point1.occNS != HEADOCC))
+	& (seg5.occUp = HEADOCC -> (
+		(point1.occNS in {TAILOCC, ERROROCC} | point1.occRS in {TAILOCC, ERROROCC})
+		& seg6.occUp != HEADOCC
+	))
+	& (seg6.occUp = HEADOCC -> (seg5.occUp in {TAILOCC, ERROROCC} & seg7.occUp != HEADOCC))
+	& (seg7.occUp = HEADOCC -> (seg6.occUp in {TAILOCC, ERROROCC} & point2.occSNR != HEADOCC))
+	& (seg9.occUp = HEADOCC -> (point2.occNS in {TAILOCC, ERROROCC} & seg10.occUp != HEADOCC))
+	& (seg10.occUp = HEADOCC -> (seg9.occUp in {TAILOCC, ERROROCC} & seg11.occUp != HEADOCC))
+	& (seg11.occUp = HEADOCC -> (seg10.occUp in {TAILOCC, ERROROCC} & point3.occSNR != HEADOCC))
+	& (seg14.occUp = HEADOCC -> (
+		(point4.occNS in {TAILOCC, ERROROCC} | point4.occRS in {TAILOCC, ERROROCC})
+		& seg15.occUp != HEADOCC
+	))
+	& (seg15.occUp = HEADOCC -> (seg14.occUp in {TAILOCC, ERROROCC} & seg16.occUp != HEADOCC))
+	& (seg16.occUp = HEADOCC -> (seg15.occUp in {TAILOCC, ERROROCC} & point1.occRS != HEADOCC))
+	& (seg18.occUp = HEADOCC -> (
+		(point5.occNS in {TAILOCC, ERROROCC} | point5.occRS in {TAILOCC, ERROROCC})
+		& seg19.occUp != HEADOCC
+	))
+	& (seg19.occUp = HEADOCC -> (seg18.occUp in {TAILOCC, ERROROCC} & seg20.occUp != HEADOCC))
+	& (seg20.occUp = HEADOCC -> (seg19.occUp in {TAILOCC, ERROROCC} & point6.occSNR != HEADOCC))
+	& (seg23.occUp = HEADOCC -> (
+		(point7.occNS in {TAILOCC, ERROROCC} | point7.occRS in {TAILOCC, ERROROCC})
+		& seg24.occUp != HEADOCC
+	))
+	& (seg24.occUp = HEADOCC -> (seg23.occUp in {TAILOCC, ERROROCC} & seg25.occUp != HEADOCC))
+	& (seg25.occUp = HEADOCC -> (seg24.occUp in {TAILOCC, ERROROCC}))
+	& (seg27.occUp = HEADOCC -> (seg28.occUp in {TAILOCC, ERROROCC} & point5.occNS != HEADOCC))
+	& (seg28.occUp = HEADOCC -> (seg29.occUp in {TAILOCC, ERROROCC} & seg27.occUp != HEADOCC))
+
+	-- DOWN: HEADOCC -> previous segment(s) shall be TAILOCC or ERROROCC,
+	--		 and next segment shall not be HEADOCC
+	& (seg1.occDown = HEADOCC -> (seg2.occDown in {TAILOCC, ERROROCC} & point3.occNS != HEADOCC))
+    & (seg2.occDown = HEADOCC -> (seg3.occDown in {TAILOCC, ERROROCC} & seg1.occDown != HEADOCC))
+	& (seg3.occDown = HEADOCC -> (point1.occSNR in {TAILOCC, ERROROCC} & seg2.occDown != HEADOCC))
+	& (seg5.occDown = HEADOCC -> (seg6.occDown in {TAILOCC, ERROROCC} & point1.occSNR != HEADOCC))
+	& (seg6.occDown = HEADOCC -> (seg7.occDown in {TAILOCC, ERROROCC} & seg5.occDown != HEADOCC))
+	& (seg7.occDown = HEADOCC -> (
+		(point2.occNS in {TAILOCC, ERROROCC} | point2.occRS in {TAILOCC, ERROROCC})
+		& seg6.occDown != HEADOCC
+	))
+	& (seg9.occDown = HEADOCC -> (seg10.occDown in {TAILOCC, ERROROCC} & point2.occNS != HEADOCC))
+	& (seg10.occDown = HEADOCC -> (seg11.occDown in {TAILOCC, ERROROCC} & seg9.occDown != HEADOCC))
+	& (seg11.occDown = HEADOCC -> (
+		(point3.occNS in {TAILOCC, ERROROCC} | point3.occRS in {TAILOCC, ERROROCC})
+		& seg10.occDown != HEADOCC
+	))
+	& (seg14.occDown = HEADOCC -> (seg15.occDown in {TAILOCC, ERROROCC} & point4.occSNR != HEADOCC))
+	& (seg15.occDown = HEADOCC -> (seg16.occDown in {TAILOCC, ERROROCC} & seg14.occDown != HEADOCC))
+	& (seg16.occDown = HEADOCC -> (point1.occSNR in {TAILOCC, ERROROCC} & seg15.occDown != HEADOCC))
+	& (seg18.occDown = HEADOCC -> (seg19.occDown in {TAILOCC, ERROROCC} & point5.occSNR  != HEADOCC))
+	& (seg19.occDown = HEADOCC -> (seg20.occDown in {TAILOCC, ERROROCC} & seg18.occDown != HEADOCC))
+	& (seg20.occDown = HEADOCC -> (
+		(point6.occNS in {TAILOCC, ERROROCC} | point6.occRS in {TAILOCC, ERROROCC})
+		& seg19.occDown != HEADOCC
+	))
+	& (seg23.occDown = HEADOCC -> (seg24.occDown in {TAILOCC, ERROROCC} & point7.occSNR != HEADOCC))
+	& (seg24.occDown = HEADOCC -> (seg25.occDown in {TAILOCC, ERROROCC} & seg23.occDown != HEADOCC))
+	& (seg27.occDown = HEADOCC -> (point5.occSNR in {TAILOCC, ERROROCC} & seg28.occDown != HEADOCC))
+	& (seg28.occDown = HEADOCC -> (seg27.occDown in {TAILOCC, ERROROCC} & seg29.occDown != HEADOCC))
+	& (seg29.occDown = HEADOCC -> (seg28.occDown in {TAILOCC, ERROROCC}))
+
+	-- POINTS: HEADOCC -> previous segment shall be TAILOCC or ERROROCC,
+	--		   and next segment(s) shall not be HEADOCC
+	& (point1.occSNR = HEADOCC -> (
+		seg5.occDown in {TAILOCC, ERROROCC}
+		& seg3.occDown != HEADOCC & seg16.occDown != HEADOCC
+	))
+	& (point1.occNS = HEADOCC -> (seg3.occUp in {TAILOCC, ERROROCC} & seg5.occUp != HEADOCC))
+	& (point1.occRS = HEADOCC -> (seg16.occUp in {TAILOCC, ERROROCC} & seg5.occUp != HEADOCC))
+	& (point2.occSNR = HEADOCC -> (
+		seg7.occUp in {TAILOCC, ERROROCC}
+		& seg9.occUp != HEADOCC & seg18.occUp != HEADOCC
+	))
+	& (point2.occNS = HEADOCC -> (seg9.occDown in {TAILOCC, ERROROCC} & seg7.occDown != HEADOCC))
+	& (point2.occRS = HEADOCC -> (point5.occSNR in {TAILOCC, ERROROCC} & seg7.occDown != HEADOCC))
+	& (point3.occSNR = HEADOCC -> (
+		seg11.occUp in {TAILOCC, ERROROCC}
+		& seg1.occUp != HEADOCC
+		& point4.occSNR != HEADOCC & point4.occNS != HEADOCC & point4.occRS != HEADOCC
+	))
+	& (point3.occNS = HEADOCC -> (seg1.occDown in {TAILOCC, ERROROCC} & seg11.occDown != HEADOCC))
+	& (point3.occRS = HEADOCC -> (point4.occSNR in {TAILOCC, ERROROCC} & seg11.occDown != HEADOCC))
+	& (point4.occSNR = HEADOCC -> (
+		seg14.occUp in {TAILOCC, ERROROCC}
+		& point3.occSNR != HEADOCC & point3.occNS != HEADOCC & point3.occRS != HEADOCC
+		& point6.occSNR != HEADOCC & point6.occNS != HEADOCC & point6.occRS != HEADOCC
+	))
+	& (point4.occNS = HEADOCC -> (point6.occSNR in {TAILOCC, ERROROCC} & seg14.occDown != HEADOCC))
+	& (point4.occRS = HEADOCC -> (point3.occSNR in {TAILOCC, ERROROCC} & seg14.occDown != HEADOCC))
+	& (point5.occSNR = HEADOCC -> (
+		seg18.occDown in {TAILOCC, ERROROCC}
+		& seg27.occDown != HEADOCC
+		& point2.occSNR != HEADOCC & point2.occNS != HEADOCC & point2.occRS != HEADOCC
+	))
+	& (point5.occNS = HEADOCC -> (seg27.occUp in {TAILOCC, ERROROCC} & seg18.occUp != HEADOCC))
+	& (point5.occRS = HEADOCC -> (point2.occSNR in {TAILOCC, ERROROCC} & seg18.occUp != HEADOCC))
+	& (point6.occSNR = HEADOCC -> (
+		seg20.occUp in {TAILOCC, ERROROCC}
+		& point4.occSNR != HEADOCC & point4.occNS != HEADOCC & point4.occRS != HEADOCC
+		& point7.occSNR != HEADOCC & point7.occNS != HEADOCC & point7.occRS != HEADOCC
+	))
+	& (point6.occNS = HEADOCC -> (point4.occSNR in {TAILOCC, ERROROCC} & seg20.occDown != HEADOCC))
+	& (point6.occRS = HEADOCC -> (point7.occSNR in {TAILOCC, ERROROCC} & seg20.occDown != HEADOCC))
+	& (point7.occSNR = HEADOCC -> (
+		seg23.occDown in {TAILOCC, ERROROCC}
+		& point6.occSNR != HEADOCC & point6.occNS != HEADOCC & point6.occRS != HEADOCC
+	))
+	& (point7.occNS = HEADOCC -> (seg26.occUp in {TAILOCC, ERROROCC} & seg23.occUp != HEADOCC))
+	& (point7.occRS = HEADOCC -> (point6.occSNR in {TAILOCC, ERROROCC} & seg23.occUp != HEADOCC))
+
+	-- UP: COMPLETETRAINOCC -> previous segment(s) shall be TAILOCC,
+	--						   and next segment shall not be HEADOCC
+    & (seg1.occUp = COMPLETETRAINOCC -> (point3.occSNR = TAILOCC & seg2.occUp != HEADOCC))
+    & (seg2.occUp = COMPLETETRAINOCC -> (seg1.occUp = TAILOCC & seg3.occUp != HEADOCC))
+	& (seg3.occUp = COMPLETETRAINOCC -> (seg2.occUp = TAILOCC & point1.occNS != HEADOCC))
+	& (seg5.occUp = COMPLETETRAINOCC -> (
+		(point1.occNS = TAILOCC | point1.occRS = TAILOCC)
+		& seg6.occUp != HEADOCC
+	))
+	& (seg6.occUp = COMPLETETRAINOCC -> (seg5.occUp = TAILOCC & seg7.occUp != HEADOCC))
+	& (seg7.occUp = COMPLETETRAINOCC -> (seg6.occUp = TAILOCC & point2.occSNR != HEADOCC))
+	& (seg9.occUp = COMPLETETRAINOCC -> (point2.occNS = TAILOCC & seg10.occUp != HEADOCC))
+	& (seg10.occUp = COMPLETETRAINOCC -> (seg9.occUp = TAILOCC & seg11.occUp != HEADOCC))
+	& (seg11.occUp = COMPLETETRAINOCC -> (seg10.occUp = TAILOCC & point3.occSNR != HEADOCC))
+	& (seg14.occUp = COMPLETETRAINOCC -> (
+		(point4.occNS = TAILOCC | point4.occRS = TAILOCC)
+		& seg15.occUp != HEADOCC
+	))
+	& (seg15.occUp = COMPLETETRAINOCC -> (seg14.occUp = TAILOCC & seg16.occUp != HEADOCC))
+	& (seg16.occUp = COMPLETETRAINOCC -> (seg15.occUp = TAILOCC & point1.occRS != HEADOCC))
+	& (seg18.occUp = COMPLETETRAINOCC -> (
+		(point5.occNS = TAILOCC | point5.occRS = TAILOCC)
+		& seg19.occUp != HEADOCC
+	))
+	& (seg19.occUp = COMPLETETRAINOCC -> (seg18.occUp = TAILOCC & seg20.occUp != HEADOCC))
+	& (seg20.occUp = COMPLETETRAINOCC -> (seg19.occUp = TAILOCC & point6.occSNR != HEADOCC))
+	& (seg23.occUp = COMPLETETRAINOCC -> (
+		(point7.occNS = TAILOCC | point7.occRS = TAILOCC)
+		& seg24.occUp != HEADOCC
+	))
+	& (seg24.occUp = COMPLETETRAINOCC -> (seg23.occUp = TAILOCC & seg25.occUp != HEADOCC))
+	& (seg25.occUp = COMPLETETRAINOCC -> (seg24.occUp = TAILOCC))
+	& (seg27.occUp = COMPLETETRAINOCC -> (seg28.occUp = TAILOCC & point5.occNS != HEADOCC))
+	& (seg28.occUp = COMPLETETRAINOCC -> (seg29.occUp = TAILOCC & seg27.occUp != HEADOCC))
+	
+	-- DOWN: COMPLETETRAINOCC -> previous segment(s) shall be TAILOCC,
+	--		 and next segment shall not be HEADOCC
+	& (seg1.occDown = COMPLETETRAINOCC -> (seg2.occDown = TAILOCC & point3.occNS != HEADOCC))
+    & (seg2.occDown = COMPLETETRAINOCC -> (seg3.occDown = TAILOCC & seg1.occDown != HEADOCC))
+	& (seg3.occDown = COMPLETETRAINOCC -> (point1.occSNR = TAILOCC & seg2.occDown != HEADOCC))
+	& (seg5.occDown = COMPLETETRAINOCC -> (seg6.occDown = TAILOCC & point1.occSNR != HEADOCC))
+	& (seg6.occDown = COMPLETETRAINOCC -> (seg7.occDown = TAILOCC & seg5.occDown != HEADOCC))
+	& (seg7.occDown = COMPLETETRAINOCC -> (
+		(point2.occNS = TAILOCC | point2.occRS = TAILOCC)
+		& seg6.occDown != HEADOCC
+	))
+	& (seg9.occDown = COMPLETETRAINOCC -> (seg10.occDown = TAILOCC & point2.occNS != HEADOCC))
+	& (seg10.occDown = COMPLETETRAINOCC -> (seg11.occDown = TAILOCC & seg9.occDown != HEADOCC))
+	& (seg11.occDown = COMPLETETRAINOCC -> (
+		(point3.occNS = TAILOCC | point3.occRS = TAILOCC)
+		& seg10.occDown != HEADOCC
+	))
+	& (seg14.occDown = COMPLETETRAINOCC -> (seg15.occDown = TAILOCC & point4.occSNR != HEADOCC))
+	& (seg15.occDown = COMPLETETRAINOCC -> (seg16.occDown = TAILOCC & seg14.occDown != HEADOCC))
+	& (seg16.occDown = COMPLETETRAINOCC -> (point1.occSNR = TAILOCC & seg15.occDown != HEADOCC))
+	& (seg18.occDown = COMPLETETRAINOCC -> (seg19.occDown = TAILOCC & point5.occSNR  != HEADOCC))
+	& (seg19.occDown = COMPLETETRAINOCC -> (seg20.occDown = TAILOCC & seg18.occDown != HEADOCC))
+	& (seg20.occDown = COMPLETETRAINOCC -> (
+		(point6.occNS = TAILOCC | point6.occRS = TAILOCC)
+		& seg19.occDown != HEADOCC
+	))
+	& (seg23.occDown = COMPLETETRAINOCC -> (seg24.occDown = TAILOCC & point7.occSNR != HEADOCC))
+	& (seg24.occDown = COMPLETETRAINOCC -> (seg25.occDown = TAILOCC & seg23.occDown != HEADOCC))
+	& (seg27.occDown = COMPLETETRAINOCC -> (point5.occSNR = TAILOCC & seg28.occDown != HEADOCC))
+	& (seg28.occDown = COMPLETETRAINOCC -> (seg27.occDown = TAILOCC & seg29.occDown != HEADOCC))
+	& (seg29.occDown = COMPLETETRAINOCC -> (seg28.occDown = TAILOCC))
+
+	-- POINTS: COMPLETETRAINOCC -> previous segment shall be TAILOCC,
+	--		   and next segment(s) shall not be HEADOCC
+	& (point1.occSNR = COMPLETETRAINOCC -> (
+		seg5.occDown = TAILOCC
+		& seg3.occDown != HEADOCC & seg16.occDown != HEADOCC
+	))
+	& (point1.occNS = COMPLETETRAINOCC -> (seg3.occUp = TAILOCC & seg5.occUp != HEADOCC))
+	& (point1.occRS = COMPLETETRAINOCC -> (seg16.occUp = TAILOCC & seg5.occUp != HEADOCC))
+	& (point2.occSNR = COMPLETETRAINOCC -> (
+		seg7.occUp = TAILOCC
+		& seg9.occUp != HEADOCC & seg18.occUp != HEADOCC
+	))
+	& (point2.occNS = COMPLETETRAINOCC -> (seg9.occDown = TAILOCC & seg7.occDown != HEADOCC))
+	& (point2.occRS = COMPLETETRAINOCC -> (point5.occSNR = TAILOCC & seg7.occDown != HEADOCC))
+	& (point3.occSNR = COMPLETETRAINOCC -> (
+		seg11.occUp = TAILOCC
+		& seg1.occUp != HEADOCC
+		& point4.occSNR != HEADOCC & point4.occNS != HEADOCC & point4.occRS != HEADOCC
+	))
+	& (point3.occNS = COMPLETETRAINOCC -> (seg1.occDown = TAILOCC & seg11.occDown != HEADOCC))
+	& (point3.occRS = COMPLETETRAINOCC -> (point4.occSNR = TAILOCC & seg11.occDown != HEADOCC))
+	& (point4.occSNR = COMPLETETRAINOCC -> (
+		seg14.occUp = TAILOCC
+		& point3.occSNR != HEADOCC & point3.occNS != HEADOCC & point3.occRS != HEADOCC
+		& point6.occSNR != HEADOCC & point6.occNS != HEADOCC & point6.occRS != HEADOCC
+	))
+	& (point4.occNS = COMPLETETRAINOCC -> (point6.occSNR = TAILOCC & seg14.occDown != HEADOCC))
+	& (point4.occRS = COMPLETETRAINOCC -> (point3.occSNR = TAILOCC & seg14.occDown != HEADOCC))
+	& (point5.occSNR = COMPLETETRAINOCC -> (
+		seg18.occDown = TAILOCC
+		& seg27.occDown != HEADOCC
+		& point2.occSNR != HEADOCC & point2.occNS != HEADOCC & point2.occRS != HEADOCC
+	))
+	& (point5.occNS = COMPLETETRAINOCC -> (seg27.occUp = TAILOCC & seg18.occUp != HEADOCC))
+	& (point5.occRS = COMPLETETRAINOCC -> (point2.occSNR = TAILOCC & seg18.occUp != HEADOCC))
+	& (point6.occSNR = COMPLETETRAINOCC -> (
+		seg20.occUp = TAILOCC
+		& point4.occSNR != HEADOCC & point4.occNS != HEADOCC & point4.occRS != HEADOCC
+		& point7.occSNR != HEADOCC & point7.occNS != HEADOCC & point7.occRS != HEADOCC
+	))
+	& (point6.occNS = COMPLETETRAINOCC -> (point4.occSNR = TAILOCC & seg20.occDown != HEADOCC))
+	& (point6.occRS = COMPLETETRAINOCC -> (point7.occSNR = TAILOCC & seg20.occDown != HEADOCC))
+	& (point7.occSNR = COMPLETETRAINOCC -> (
+		seg23.occDown = TAILOCC
+		& point6.occSNR != HEADOCC & point6.occNS != HEADOCC & point6.occRS != HEADOCC
+	))
+	& (point7.occNS = COMPLETETRAINOCC -> (seg26.occUp = TAILOCC & seg23.occUp != HEADOCC))
+	& (point7.occRS = COMPLETETRAINOCC -> (point6.occSNR = TAILOCC & seg23.occUp != HEADOCC))
+
+	-- UP: TAILOCC -> previous segment(s) shall not be TAILOCC,
+	--				  and next segment has HEADOCC or ERROROCC
+    & (seg1.occUp = TAILOCC -> (point3.occSNR != TAILOCC & seg2.occUp in {HEADOCC, ERROROCC}))
+    & (seg2.occUp = TAILOCC -> (seg1.occUp != TAILOCC & seg3.occUp in {HEADOCC, ERROROCC}))
+	& (seg3.occUp = TAILOCC -> (seg2.occUp != TAILOCC & point1.occNS in {HEADOCC, ERROROCC}))
+	& (seg5.occUp = TAILOCC -> (
+		(point1.occNS != TAILOCC & point1.occRS != TAILOCC)
+		& seg6.occUp in {HEADOCC, ERROROCC}
+	))
+	& (seg6.occUp = TAILOCC -> (seg5.occUp != TAILOCC & seg7.occUp in {HEADOCC, ERROROCC}))
+	& (seg7.occUp = TAILOCC -> (seg6.occUp != TAILOCC & point2.occSNR in {HEADOCC, ERROROCC}))
+	& (seg9.occUp = TAILOCC -> (point2.occNS != TAILOCC & seg10.occUp in {HEADOCC, ERROROCC}))
+	& (seg10.occUp = TAILOCC -> (seg9.occUp != TAILOCC & seg11.occUp in {HEADOCC, ERROROCC}))
+	& (seg11.occUp = TAILOCC -> (seg10.occUp != TAILOCC & point3.occSNR in {HEADOCC, ERROROCC}))
+	& (seg14.occUp = TAILOCC -> (
+		(point4.occNS != TAILOCC & point4.occRS != TAILOCC)
+		& seg15.occUp in {HEADOCC, ERROROCC}
+	))
+	& (seg15.occUp = TAILOCC -> (seg14.occUp != TAILOCC & seg16.occUp in {HEADOCC, ERROROCC}))
+	& (seg16.occUp = TAILOCC -> (seg15.occUp != TAILOCC & point1.occRS in {HEADOCC, ERROROCC}))
+	& (seg18.occUp = TAILOCC -> (
+		(point5.occNS != TAILOCC & point5.occRS != TAILOCC)
+		& seg19.occUp in {HEADOCC, ERROROCC}
+	))
+	& (seg19.occUp = TAILOCC -> (seg18.occUp != TAILOCC & seg20.occUp in {HEADOCC, ERROROCC}))
+	& (seg20.occUp = TAILOCC -> (seg19.occUp != TAILOCC & point6.occSNR in {HEADOCC, ERROROCC}))
+	& (seg23.occUp = TAILOCC -> (
+		(point7.occNS != TAILOCC & point7.occRS != TAILOCC)
+		& seg24.occUp in {HEADOCC, ERROROCC}
+	))
+	& (seg24.occUp = TAILOCC -> (seg23.occUp != TAILOCC & seg25.occUp in {HEADOCC, ERROROCC}))
+	& (seg25.occUp = TAILOCC -> (seg24.occUp != TAILOCC))
+	& (seg27.occUp = TAILOCC -> (seg28.occUp != TAILOCC & point5.occNS in {HEADOCC, ERROROCC}))
+	& (seg28.occUp = TAILOCC -> (seg29.occUp != TAILOCC & seg27.occUp in {HEADOCC, ERROROCC}))
+
+	-- DOWN: TAILOCC -> previous segment(s) shall not be TAILOCC,
+	--		 and next segment has HEADOCC or ERROROCC
+	& (seg1.occDown = TAILOCC -> (seg2.occDown != TAILOCC & point3.occNS in {HEADOCC, ERROROCC}))
+    & (seg2.occDown = TAILOCC -> (seg3.occDown != TAILOCC & seg1.occDown in {HEADOCC, ERROROCC}))
+	& (seg3.occDown = TAILOCC -> (point1.occSNR != TAILOCC & seg2.occDown in {HEADOCC, ERROROCC}))
+	& (seg5.occDown = TAILOCC -> (seg6.occDown != TAILOCC & point1.occSNR in {HEADOCC, ERROROCC}))
+	& (seg6.occDown = TAILOCC -> (seg7.occDown != TAILOCC & seg5.occDown in {HEADOCC, ERROROCC}))
+	& (seg7.occDown = TAILOCC -> (
+		(point2.occNS != TAILOCC & point2.occRS != TAILOCC)
+		& seg6.occDown in {HEADOCC, ERROROCC}
+	))
+	& (seg9.occDown = TAILOCC -> (seg10.occDown != TAILOCC & point2.occNS in {HEADOCC, ERROROCC}))
+	& (seg10.occDown = TAILOCC -> (seg11.occDown != TAILOCC & seg9.occDown in {HEADOCC, ERROROCC}))
+	& (seg11.occDown = TAILOCC -> (
+		(point3.occNS != TAILOCC & point3.occRS != TAILOCC)
+		& seg10.occDown in {HEADOCC, ERROROCC}
+	))
+	& (seg14.occDown = TAILOCC -> (seg15.occDown != TAILOCC & point4.occSNR in {HEADOCC, ERROROCC}))
+	& (seg15.occDown = TAILOCC -> (seg16.occDown != TAILOCC & seg14.occDown in {HEADOCC, ERROROCC}))
+	& (seg16.occDown = TAILOCC -> (point1.occSNR != TAILOCC & seg15.occDown in {HEADOCC, ERROROCC}))
+	& (seg18.occDown = TAILOCC -> (seg19.occDown != TAILOCC & point5.occSNR  in {HEADOCC, ERROROCC}))
+	& (seg19.occDown = TAILOCC -> (seg20.occDown != TAILOCC & seg18.occDown in {HEADOCC, ERROROCC}))
+	& (seg20.occDown = TAILOCC -> (
+		(point6.occNS != TAILOCC & point6.occRS != TAILOCC)
+		& seg19.occDown in {HEADOCC, ERROROCC}
+	))
+	& (seg23.occDown = TAILOCC -> (seg24.occDown != TAILOCC & point7.occSNR in {HEADOCC, ERROROCC}))
+	& (seg24.occDown = TAILOCC -> (seg25.occDown != TAILOCC & seg23.occDown in {HEADOCC, ERROROCC}))
+	& (seg27.occDown = TAILOCC -> (point5.occSNR != TAILOCC & seg28.occDown in {HEADOCC, ERROROCC}))
+	& (seg28.occDown = TAILOCC -> (seg27.occDown != TAILOCC & seg29.occDown in {HEADOCC, ERROROCC}))
+	& (seg29.occDown = TAILOCC -> (seg28.occDown != TAILOCC))
+	
+	-- POINTS: TAILOCC -> previous segment shall not be TAILOCC,
+	--		   and next segment(S) has HEADOCC or ERROROCC
+	& (point1.occSNR = TAILOCC -> (
+		seg5.occDown != TAILOCC
+		& (seg3.occDown in {HEADOCC, ERROROCC} | seg16.occDown in {HEADOCC, ERROROCC})
+	))
+	& (point1.occNS = TAILOCC -> (seg3.occUp != TAILOCC & seg5.occUp in {HEADOCC, ERROROCC}))
+	& (point1.occRS = TAILOCC -> (seg16.occUp != TAILOCC & seg5.occUp in {HEADOCC, ERROROCC}))
+	& (point2.occSNR = TAILOCC -> (
+		seg7.occUp != TAILOCC
+		& (seg9.occUp in {HEADOCC, ERROROCC} | seg18.occUp in {HEADOCC, ERROROCC})
+	))
+	& (point2.occNS = TAILOCC -> (seg9.occDown != TAILOCC & seg7.occDown in {HEADOCC, ERROROCC}))
+	& (point2.occRS = TAILOCC -> (point5.occSNR != TAILOCC & seg7.occDown in {HEADOCC, ERROROCC}))
+	& (point3.occSNR = TAILOCC -> (
+		seg11.occUp != TAILOCC
+		& (
+			seg1.occUp in {HEADOCC, ERROROCC}
+			| point4.occSNR in {HEADOCC, ERROROCC}
+			| point4.occNS in {HEADOCC, ERROROCC}
+			| point4.occRS in {HEADOCC, ERROROCC}
+		)
+	))
+	& (point3.occNS = TAILOCC -> (seg1.occDown != TAILOCC & seg11.occDown in {HEADOCC, ERROROCC}))
+	& (point3.occRS = TAILOCC -> (point4.occSNR != TAILOCC & seg11.occDown in {HEADOCC, ERROROCC}))
+	& (point4.occSNR = TAILOCC -> (
+		seg14.occUp != TAILOCC
+		& (
+			point3.occSNR in {HEADOCC, ERROROCC}
+			| point3.occNS in {HEADOCC, ERROROCC}
+			| point3.occRS in {HEADOCC, ERROROCC}
+			| point6.occSNR in {HEADOCC, ERROROCC}
+			| point6.occNS in {HEADOCC, ERROROCC}
+			| point6.occRS in {HEADOCC, ERROROCC}
+		)
+	))
+	& (point4.occNS = TAILOCC -> (point6.occSNR != TAILOCC & seg14.occDown in {HEADOCC, ERROROCC}))
+	& (point4.occRS = TAILOCC -> (point3.occSNR != TAILOCC & seg14.occDown in {HEADOCC, ERROROCC}))
+	& (point5.occSNR = TAILOCC -> (
+		seg18.occDown != TAILOCC
+		& (
+			seg27.occDown in {HEADOCC, ERROROCC}
+			| point2.occSNR in {HEADOCC, ERROROCC}
+			| point2.occNS in {HEADOCC, ERROROCC}
+			| point2.occRS in {HEADOCC, ERROROCC}
+		)
+	))
+	& (point5.occNS = TAILOCC -> (seg27.occUp != TAILOCC & seg18.occUp in {HEADOCC, ERROROCC}))
+	& (point5.occRS = TAILOCC -> (point2.occSNR != TAILOCC & seg18.occUp in {HEADOCC, ERROROCC}))
+	& (point6.occSNR = TAILOCC -> (
+		seg20.occUp != TAILOCC
+		& (
+			point4.occSNR in {HEADOCC, ERROROCC}
+			| point4.occNS in {HEADOCC, ERROROCC}
+			| point4.occRS in {HEADOCC, ERROROCC}
+			| point7.occSNR in {HEADOCC, ERROROCC}
+			| point7.occNS in {HEADOCC, ERROROCC}
+			| point7.occRS in {HEADOCC, ERROROCC}
+		)
+	))
+	& (point6.occNS = TAILOCC -> (point4.occSNR != TAILOCC & seg20.occDown in {HEADOCC, ERROROCC}))
+	& (point6.occRS = TAILOCC -> (point7.occSNR != TAILOCC & seg20.occDown in {HEADOCC, ERROROCC}))
+	& (point7.occSNR = TAILOCC -> (
+		seg23.occDown != TAILOCC
+		& (
+			point6.occSNR in {HEADOCC, ERROROCC}
+			| point6.occNS in {HEADOCC, ERROROCC}
+			| point6.occRS in {HEADOCC, ERROROCC}
+		)
+	))
+	& (point7.occNS = TAILOCC -> (seg26.occUp != TAILOCC & seg23.occUp in {HEADOCC, ERROROCC}))
+	& (point7.occRS = TAILOCC -> (point6.occSNR != TAILOCC & seg23.occUp in {HEADOCC, ERROROCC}))
+
+-- PROPERTIES FOR MODULE TrackState --
+INVARSPEC 
+	NAME NoOccUpErrors := !(
+		seg1.occUp = ERROROCC
+		| seg2.occUp = ERROROCC
+		| seg3.occUp = ERROROCC
+		| seg5.occUp = ERROROCC
+		| seg6.occUp = ERROROCC
+		| seg7.occUp = ERROROCC
+		| seg9.occUp = ERROROCC
+		| seg10.occUp = ERROROCC
+		| seg11.occUp = ERROROCC
+		| seg14.occUp = ERROROCC
+		| seg15.occUp = ERROROCC
+		| seg16.occUp = ERROROCC
+		| seg18.occUp = ERROROCC
+		| seg19.occUp = ERROROCC
+		| seg20.occUp = ERROROCC
+		| seg23.occUp = ERROROCC
+		| seg24.occUp = ERROROCC
+		| seg25.occUp = ERROROCC
+		| seg26.occUp = ERROROCC
+		| seg27.occUp = ERROROCC
+		| seg28.occUp = ERROROCC
+		| seg29.occUp = ERROROCC
+    );
+
+INVARSPEC 
+	NAME NoOccDownErrors := !(
+		seg1.occDown = ERROROCC
+		| seg2.occDown = ERROROCC
+		| seg3.occDown = ERROROCC
+		| seg5.occDown = ERROROCC
+		| seg6.occDown = ERROROCC
+		| seg7.occDown = ERROROCC
+		| seg9.occDown = ERROROCC
+		| seg10.occDown = ERROROCC
+		| seg11.occDown = ERROROCC
+		| seg14.occDown = ERROROCC
+		| seg15.occDown = ERROROCC
+		| seg16.occDown = ERROROCC
+		| seg18.occDown = ERROROCC
+		| seg19.occDown = ERROROCC
+		| seg20.occDown = ERROROCC
+		| seg23.occDown = ERROROCC
+		| seg24.occDown = ERROROCC
+		| seg25.occDown = ERROROCC
+		| seg26.occDown = ERROROCC
+		| seg27.occDown = ERROROCC
+		| seg28.occDown = ERROROCC
+		| seg29.occDown = ERROROCC
+    );
+
+INVARSPEC
+	NAME NoOccPointErrors := !(
+		point1.occSNR = ERROROCC
+		| point1.occNS = ERROROCC
+		| point1.occRS = ERROROCC
+		| point2.occSNR = ERROROCC
+		| point2.occNS = ERROROCC
+		| point2.occRS = ERROROCC
+		| point3.occSNR = ERROROCC
+		| point3.occNS = ERROROCC
+		| point3.occRS = ERROROCC
+		| point4.occSNR = ERROROCC
+		| point4.occNS = ERROROCC
+		| point4.occRS = ERROROCC
+		| point5.occSNR = ERROROCC
+		| point5.occNS = ERROROCC
+		| point5.occRS = ERROROCC
+		| point6.occSNR = ERROROCC
+		| point6.occNS = ERROROCC
+		| point6.occRS = ERROROCC
+		| point7.occSNR = ERROROCC
+		| point7.occNS = ERROROCC
+		| point7.occRS = ERROROCC
+	);
+
+INVARSPEC
+	NAME NoSegHeadToHeadCollisions := (
+		(seg1.occDown != FREE -> seg1.occUp = FREE) & (seg1.occUp != FREE -> seg1.occDown = FREE)
+		& (seg2.occDown != FREE -> seg2.occUp = FREE) & (seg2.occUp != FREE -> seg2.occDown = FREE)
+		& (seg3.occDown != FREE -> seg3.occUp = FREE) & (seg3.occUp != FREE -> seg3.occDown = FREE)
+		& (seg5.occDown != FREE -> seg5.occUp = FREE) & (seg5.occUp != FREE -> seg5.occDown = FREE)
+		& (seg6.occDown != FREE -> seg6.occUp = FREE) & (seg6.occUp != FREE -> seg6.occDown = FREE)
+		& (seg7.occDown != FREE -> seg7.occUp = FREE) & (seg7.occUp != FREE -> seg7.occDown = FREE)
+		& (seg9.occDown != FREE -> seg9.occUp = FREE) & (seg9.occUp != FREE -> seg9.occDown = FREE)
+		& (seg10.occDown != FREE -> seg10.occUp = FREE) & (seg10.occUp != FREE -> seg10.occDown = FREE)
+		& (seg11.occDown != FREE -> seg11.occUp = FREE) & (seg11.occUp != FREE -> seg11.occDown = FREE)
+		& (seg14.occDown != FREE -> seg14.occUp = FREE) & (seg14.occUp != FREE -> seg14.occDown = FREE)
+		& (seg15.occDown != FREE -> seg15.occUp = FREE) & (seg15.occUp != FREE -> seg15.occDown = FREE)
+		& (seg16.occDown != FREE -> seg16.occUp = FREE) & (seg16.occUp != FREE -> seg16.occDown = FREE)
+		& (seg18.occDown != FREE -> seg18.occUp = FREE) & (seg18.occUp != FREE -> seg18.occDown = FREE)
+		& (seg19.occDown != FREE -> seg19.occUp = FREE) & (seg19.occUp != FREE -> seg19.occDown = FREE)
+		& (seg20.occDown != FREE -> seg20.occUp = FREE) & (seg20.occUp != FREE -> seg20.occDown = FREE)
+		& (seg23.occDown != FREE -> seg23.occUp = FREE) & (seg23.occUp != FREE -> seg23.occDown = FREE)
+		& (seg24.occDown != FREE -> seg24.occUp = FREE) & (seg24.occUp != FREE -> seg24.occDown = FREE)
+		& (seg25.occDown != FREE -> seg25.occUp = FREE) & (seg25.occUp != FREE -> seg25.occDown = FREE)
+		& (seg26.occDown != FREE -> seg26.occUp = FREE) & (seg26.occUp != FREE -> seg26.occDown = FREE)
+		& (seg27.occDown != FREE -> seg27.occUp = FREE) & (seg27.occUp != FREE -> seg27.occDown = FREE)
+		& (seg28.occDown != FREE -> seg28.occUp = FREE) & (seg28.occUp != FREE -> seg28.occDown = FREE)
+		& (seg29.occDown != FREE -> seg29.occUp = FREE) & (seg29.occUp != FREE -> seg29.occDown = FREE)
+	);
+
+INVARSPEC
+	NAME NoPointHeadToHeadCollisions := (
+		(point1.occSNR != FREE -> (point1.occNS = FREE | point1.occRS = FREE))
+		& ((point1.occNS != FREE | point1.occRS != FREE) -> point1.occSNR = FREE)
+		& (point2.occSNR != FREE -> (point2.occNS = FREE | point2.occRS = FREE))
+		& ((point2.occNS != FREE | point2.occRS != FREE) -> point2.occSNR = FREE)
+		& (point3.occSNR != FREE -> (point3.occNS = FREE | point3.occRS = FREE))
+		& ((point3.occNS != FREE | point3.occRS != FREE) -> point3.occSNR = FREE)
+		& (point4.occSNR != FREE -> (point4.occNS = FREE | point4.occRS = FREE))
+		& ((point4.occNS != FREE | point4.occRS != FREE) -> point4.occSNR = FREE)
+		& (point5.occSNR != FREE -> (point5.occNS = FREE | point5.occRS = FREE))
+		& ((point5.occNS != FREE | point5.occRS != FREE) -> point5.occSNR = FREE)
+		& (point6.occSNR != FREE -> (point6.occNS = FREE | point6.occRS = FREE))
+		& ((point6.occNS != FREE | point6.occRS != FREE) -> point6.occSNR = FREE)
+		& (point7.occSNR != FREE -> (point7.occNS = FREE | point7.occRS = FREE))
+		& ((point7.occNS != FREE | point7.occRS != FREE) -> point7.occSNR = FREE)
+	);
+
+-- If a section has a train in TAILOCC or COMPLETETRAINOCC
+--     then the previous section shall not have a train in HEADOCC or COMPLETETRAINOCC.
+-- UNLESS there's a signal in aspect STOP between them, or a point aspect means
+--     then they would not be able to collide.
+
+-- Orientation: Anti-Clockwise (UP)
+INVARSPEC
+	NAME NoHeadToTailCollisionsUp := (
+		(seg1.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(point3.occSNR in {COMPLETETRAINOCC, HEADOCC})
+			| point3.ACT != NORMAL
+		))
+		& (seg2.occUp in {TAILOCC, COMPLETETRAINOCC} -> !(seg1.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg3.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg2.occUp in {COMPLETETRAINOCC, HEADOCC})
+			| signal2.ACT = STOP
+		))
+		& (seg5.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point1.occNS in {COMPLETETRAINOCC, HEADOCC})
+				& !(point1.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point1.ACT = INTERMEDIATE
+		))
+		& (seg6.occUp in {TAILOCC, COMPLETETRAINOCC} -> !(seg5.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg7.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg6.occUp in {COMPLETETRAINOCC, HEADOCC})
+			| signal4.ACT = STOP
+		))
+		& (seg9.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(point2.occSNR in {COMPLETETRAINOCC, HEADOCC})
+			| point2.ACT != NORMAL
+		))
+		& (seg10.occUp in {TAILOCC, COMPLETETRAINOCC} -> !(seg9.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg11.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg10.occUp in {COMPLETETRAINOCC, HEADOCC})
+			| signal6.ACT = STOP
+		))
+		& (seg14.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point4.occNS in {COMPLETETRAINOCC, HEADOCC})
+				& !(point4.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point4.ACT = INTERMEDIATE
+		))
+		& (seg15.occUp in {TAILOCC, COMPLETETRAINOCC} -> !(seg14.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg16.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg15.occUp in {COMPLETETRAINOCC, HEADOCC})
+			| signal8.ACT = STOP
+		))
+		& (seg18.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point5.occNS in {COMPLETETRAINOCC, HEADOCC})
+				& !(point5.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point5.ACT = INTERMEDIATE
+		))
+		& (seg19.occUp in {TAILOCC, COMPLETETRAINOCC} -> !(seg18.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg20.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg19.occUp in {COMPLETETRAINOCC, HEADOCC})
+			| signal10.ACT = STOP
+		))
+		& (seg23.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point7.occNS in {COMPLETETRAINOCC, HEADOCC})
+				& !(point7.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point7.ACT = INTERMEDIATE
+		))
+		& (seg24.occUp in {TAILOCC, COMPLETETRAINOCC} -> !(seg23.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg25.occUp = COMPLETETRAINOCC -> !(seg24.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg27.occUp in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg28.occUp in {COMPLETETRAINOCC, HEADOCC})
+			| signal14.ACT = STOP
+		))
+		& (seg28.occUp in {TAILOCC, COMPLETETRAINOCC} -> !(seg29.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg29.occUp in {TAILOCC, COMPLETETRAINOCC} -> (signal15.ACT = STOP))
+	);
+
+-- Orientation: Clockwise (DOWN)
+INVARSPEC
+	NAME NoHeadToTailCollisionsDown := (
+		(seg1.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg2.occDown in {COMPLETETRAINOCC, HEADOCC})
+			| signal1.ACT = STOP
+		))
+		& (seg2.occDown in {TAILOCC, COMPLETETRAINOCC} -> !(seg3.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg3.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(point1.occSNR in {COMPLETETRAINOCC, HEADOCC})
+			| point1.ACT != NORMAL
+		))
+		& (seg5.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg6.occDown in {COMPLETETRAINOCC, HEADOCC})
+			| signal3.ACT = STOP
+		))
+		& (seg6.occDown in {TAILOCC, COMPLETETRAINOCC} -> !(seg7.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg7.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point2.occNS in {COMPLETETRAINOCC, HEADOCC})
+				& !(point2.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point2.ACT = INTERMEDIATE
+		))
+		& (seg9.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg10.occDown in {COMPLETETRAINOCC, HEADOCC})
+			| signal5.ACT = STOP
+		))
+		& (seg10.occDown in {TAILOCC, COMPLETETRAINOCC} -> !(seg11.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg11.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point3.occNS in {COMPLETETRAINOCC, HEADOCC})
+				& !(point3.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point3.ACT = INTERMEDIATE
+		))
+		& (seg14.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg15.occDown in {COMPLETETRAINOCC, HEADOCC})
+			| signal4.ACT = STOP
+		))
+		& (seg15.occDown in {TAILOCC, COMPLETETRAINOCC} -> !(seg16.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg16.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(point1.occSNR in {COMPLETETRAINOCC, HEADOCC})
+			| point1.ACT != REVERSE
+		))
+		& (seg18.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg19.occDown in {COMPLETETRAINOCC, HEADOCC})
+			| signal9.ACT = STOP
+		))
+		& (seg19.occDown in {TAILOCC, COMPLETETRAINOCC} -> !(seg20.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg20.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point6.occNS in {COMPLETETRAINOCC, HEADOCC})
+				& !(point6.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point6.ACT = INTERMEDIATE
+		))
+		& (seg23.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(seg24.occDown in {COMPLETETRAINOCC, HEADOCC})
+			| signal11.ACT = STOP
+		))
+		& (seg24.occDown in {TAILOCC, COMPLETETRAINOCC} -> !(seg25.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg25.occDown in {TAILOCC, COMPLETETRAINOCC} -> (signal12.ACT = STOP))
+		& (seg27.occDown in {TAILOCC, COMPLETETRAINOCC} -> (
+			!(point5.occSNR in {COMPLETETRAINOCC, HEADOCC})
+			| point5.ACT != NORMAL
+		))
+		& (seg28.occDown in {TAILOCC, COMPLETETRAINOCC} -> !(seg27.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (seg29.occDown = COMPLETETRAINOCC -> !(seg28.occDown in {COMPLETETRAINOCC, HEADOCC}))
+	);
+
+INVARSPEC
+	NAME NoPointHeadToTailCollisions := (
+		(point1.occSNR in {TAILOCC, COMPLETETRAINOCC} -> !(seg5.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (point1.occNS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(seg3.occUp in {COMPLETETRAINOCC, HEADOCC})
+				& !(point1.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point1.ACT = INTERMEDIATE
+		))
+		& (point1.occRS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(seg16.occUp in {COMPLETETRAINOCC, HEADOCC})
+				& !(point1.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point1.ACT = INTERMEDIATE
+		))
+		& (point2.occSNR in {TAILOCC, COMPLETETRAINOCC} -> !(seg7.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (point2.occNS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(seg9.occDown in {COMPLETETRAINOCC, HEADOCC})
+				& !(point2.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point2.ACT = INTERMEDIATE
+		))
+		& (point2.occRS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point5.occSNR in {COMPLETETRAINOCC, HEADOCC})
+				& !(point2.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| (point2.ACT = INTERMEDIATE & point5.ACT != REVERSE)
+		))
+		& (point3.occSNR in {TAILOCC, COMPLETETRAINOCC} -> !(seg11.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (point3.occNS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(seg1.occDown in {COMPLETETRAINOCC, HEADOCC})
+				& !(point3.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point3.ACT = INTERMEDIATE
+		))
+		& (point3.occRS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point4.occSNR in {COMPLETETRAINOCC, HEADOCC})
+				& !(point3.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| (point3.ACT = INTERMEDIATE & point4.ACT != REVERSE)
+		))
+		& (point4.occSNR in {TAILOCC, COMPLETETRAINOCC} -> !(seg14.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (point4.occNS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point6.occSNR in {COMPLETETRAINOCC, HEADOCC})
+				& !(point4.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| (point4.ACT = INTERMEDIATE & point6.ACT != NORMAL)
+		))
+		& (point4.occRS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point3.occSNR in {COMPLETETRAINOCC, HEADOCC})
+				& !(point4.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| (point4.ACT = INTERMEDIATE & point3.ACT != REVERSE)
+		))
+		& (point5.occSNR in {TAILOCC, COMPLETETRAINOCC} -> !(seg18.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (point5.occNS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(seg27.occUp in {COMPLETETRAINOCC, HEADOCC})
+				& !(point5.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point5.ACT = INTERMEDIATE
+		))
+		& (point5.occRS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point2.occSNR in {COMPLETETRAINOCC, HEADOCC})
+				& !(point5.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| (point5.ACT = INTERMEDIATE & point2.ACT != REVERSE)
+		))
+		& (point6.occSNR in {TAILOCC, COMPLETETRAINOCC} -> !(seg20.occUp in {COMPLETETRAINOCC, HEADOCC}))
+		& (point6.occNS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point4.occSNR in {COMPLETETRAINOCC, HEADOCC})
+				& !(point6.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| (point6.ACT = INTERMEDIATE & point4.ACT != NORMAL)
+		))
+		& (point6.occRS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point7.occSNR in {COMPLETETRAINOCC, HEADOCC})
+				& !(point6.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| (point6.ACT = INTERMEDIATE & point7.ACT != REVERSE)
+		))
+		& (point7.occSNR in {TAILOCC, COMPLETETRAINOCC} -> !(seg23.occDown in {COMPLETETRAINOCC, HEADOCC}))
+		& (point7.occNS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(seg26.occUp in {COMPLETETRAINOCC, HEADOCC})
+				& !(point7.occRS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| point7.ACT = INTERMEDIATE
+		))
+		& (point7.occRS in {TAILOCC, COMPLETETRAINOCC} -> (
+			(
+				!(point6.occSNR in {COMPLETETRAINOCC, HEADOCC})
+				& !(point7.occNS in {COMPLETETRAINOCC, HEADOCC})
+			)
+			| (point7.ACT = INTERMEDIATE & point6.ACT != REVERSE)
+		))
+	);
+
+-- Point element lock mode is AVAILABLE after USED
+INVARSPEC
+	NAME NoPointLockModeTransitionError := (
+		(point1.mode = EXLOCKED -> point1.prev != RELEASED)
+		& (point1.mode = USED -> point1.prev in {PENDING, RELEASED})
+		& (point1.mode = AVAILABLE -> point1.prev != RELEASED)
+		& (point1.prev = PENDING -> point1.mode in {AVAILABLE, EXLOCKED, USED})
+		& (point1.prev = RELEASED -> point1.mode = USED)
+		& (point2.mode = EXLOCKED -> point2.prev != RELEASED)
+		& (point2.mode = USED -> point2.prev in {PENDING, RELEASED})
+		& (point2.mode = AVAILABLE -> point2.prev != RELEASED)
+		& (point2.prev = PENDING -> point2.mode in {AVAILABLE, EXLOCKED, USED})
+		& (point2.prev = RELEASED -> point2.mode = USED)
+		& (point3.mode = EXLOCKED -> point3.prev != RELEASED)
+		& (point3.mode = USED -> point3.prev in {PENDING, RELEASED})
+		& (point3.mode = AVAILABLE -> point3.prev != RELEASED)
+		& (point3.prev = PENDING -> point3.mode in {AVAILABLE, EXLOCKED, USED})
+		& (point3.prev = RELEASED -> point3.mode = USED)
+		& (point4.mode = EXLOCKED -> point4.prev != RELEASED)
+		& (point4.mode = USED -> point4.prev in {PENDING, RELEASED})
+		& (point4.mode = AVAILABLE -> point4.prev != RELEASED)
+		& (point4.prev = PENDING -> point4.mode in {AVAILABLE, EXLOCKED, USED})
+		& (point4.prev = RELEASED -> point4.mode = USED)
+		& (point5.mode = EXLOCKED -> point5.prev != RELEASED)
+		& (point5.mode = USED -> point5.prev in {PENDING, RELEASED})
+		& (point5.mode = AVAILABLE -> point5.prev != RELEASED)
+		& (point5.prev = PENDING -> point5.mode in {AVAILABLE, EXLOCKED, USED})
+		& (point5.prev = RELEASED -> point5.mode = USED)
+		& (point6.mode = EXLOCKED -> point6.prev != RELEASED)
+		& (point6.mode = USED -> point6.prev in {PENDING, RELEASED})
+		& (point6.mode = AVAILABLE -> point6.prev != RELEASED)
+		& (point6.prev = PENDING -> point6.mode in {AVAILABLE, EXLOCKED, USED})
+		& (point6.prev = RELEASED -> point6.mode = USED)
+		& (point7.mode = EXLOCKED -> point7.prev != RELEASED)
+		& (point7.mode = USED -> point7.prev in {PENDING, RELEASED})
+		& (point7.mode = AVAILABLE -> point7.prev != RELEASED)
+		& (point7.prev = PENDING -> point7.mode in {AVAILABLE, EXLOCKED, USED})
+		& (point7.prev = RELEASED -> point7.mode = USED)
+	);
+
+-- Segment\Linear element lock mode is AVAILABLE eventually after USED
+INVARSPEC
+	NAME NoSegmentLockModeTransitionError := (
+		(seg1.mode = EXLOCKED -> seg1.prev != RELEASED)
+		& (seg1.mode = USED -> seg1.prev in {PENDING, RELEASED})
+		& (seg1.mode = AVAILABLE -> seg1.prev != RELEASED)
+		& (seg1.prev = PENDING -> seg1.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg1.prev = RELEASED -> seg1.mode = USED)
+		& (seg2.mode = EXLOCKED -> seg2.prev != RELEASED)
+		& (seg2.mode = USED -> seg2.prev in {PENDING, RELEASED})
+		& (seg2.mode = AVAILABLE -> seg2.prev != RELEASED)
+		& (seg2.prev = PENDING -> seg2.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg2.prev = RELEASED -> seg2.mode = USED)
+		& (seg3.mode = EXLOCKED -> seg3.prev != RELEASED)
+		& (seg3.mode = USED -> seg3.prev in {PENDING, RELEASED})
+		& (seg3.mode = AVAILABLE -> seg3.prev != RELEASED)
+		& (seg3.prev = PENDING -> seg3.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg3.prev = RELEASED -> seg3.mode = USED)
+		& (seg5.mode = EXLOCKED -> seg5.prev != RELEASED)
+		& (seg5.mode = USED -> seg5.prev in {PENDING, RELEASED})
+		& (seg5.mode = AVAILABLE -> seg5.prev != RELEASED)
+		& (seg5.prev = PENDING -> seg5.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg5.prev = RELEASED -> seg5.mode = USED)
+		& (seg6.mode = EXLOCKED -> seg6.prev != RELEASED)
+		& (seg6.mode = USED -> seg6.prev in {PENDING, RELEASED})
+		& (seg6.mode = AVAILABLE -> seg6.prev != RELEASED)
+		& (seg6.prev = PENDING -> seg6.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg6.prev = RELEASED -> seg6.mode = USED)
+		& (seg7.mode = EXLOCKED -> seg7.prev != RELEASED)
+		& (seg7.mode = USED -> seg7.prev in {PENDING, RELEASED})
+		& (seg7.mode = AVAILABLE -> seg7.prev != RELEASED)
+		& (seg7.prev = PENDING -> seg7.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg7.prev = RELEASED -> seg7.mode = USED)
+		& (seg9.mode = EXLOCKED -> seg9.prev != RELEASED)
+		& (seg9.mode = USED -> seg9.prev in {PENDING, RELEASED})
+		& (seg9.mode = AVAILABLE -> seg9.prev != RELEASED)
+		& (seg9.prev = PENDING -> seg9.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg9.prev = RELEASED -> seg9.mode = USED)
+		& (seg10.mode = EXLOCKED -> seg10.prev != RELEASED)
+		& (seg10.mode = USED -> seg10.prev in {PENDING, RELEASED})
+		& (seg10.mode = AVAILABLE -> seg10.prev != RELEASED)
+		& (seg10.prev = PENDING -> seg10.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg10.prev = RELEASED -> seg10.mode = USED)
+		& (seg11.mode = EXLOCKED -> seg11.prev != RELEASED)
+		& (seg11.mode = USED -> seg11.prev in {PENDING, RELEASED})
+		& (seg11.mode = AVAILABLE -> seg11.prev != RELEASED)
+		& (seg11.prev = PENDING -> seg11.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg11.prev = RELEASED -> seg11.mode = USED)
+		& (seg14.mode = EXLOCKED -> seg14.prev != RELEASED)
+		& (seg14.mode = USED -> seg14.prev in {PENDING, RELEASED})
+		& (seg14.mode = AVAILABLE -> seg14.prev != RELEASED)
+		& (seg14.prev = PENDING -> seg14.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg14.prev = RELEASED -> seg14.mode = USED)
+		& (seg15.mode = EXLOCKED -> seg15.prev != RELEASED)
+		& (seg15.mode = USED -> seg15.prev in {PENDING, RELEASED})
+		& (seg15.mode = AVAILABLE -> seg15.prev != RELEASED)
+		& (seg15.prev = PENDING -> seg15.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg15.prev = RELEASED -> seg15.mode = USED)
+		& (seg16.mode = EXLOCKED -> seg16.prev != RELEASED)
+		& (seg16.mode = USED -> seg16.prev in {PENDING, RELEASED})
+		& (seg16.mode = AVAILABLE -> seg16.prev != RELEASED)
+		& (seg16.prev = PENDING -> seg16.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg16.prev = RELEASED -> seg16.mode = USED)
+		& (seg18.mode = EXLOCKED -> seg18.prev != RELEASED)
+		& (seg18.mode = USED -> seg18.prev in {PENDING, RELEASED})
+		& (seg18.mode = AVAILABLE -> seg18.prev != RELEASED)
+		& (seg18.prev = PENDING -> seg18.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg18.prev = RELEASED -> seg18.mode = USED)
+		& (seg19.mode = EXLOCKED -> seg19.prev != RELEASED)
+		& (seg19.mode = USED -> seg19.prev in {PENDING, RELEASED})
+		& (seg19.mode = AVAILABLE -> seg19.prev != RELEASED)
+		& (seg19.prev = PENDING -> seg19.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg19.prev = RELEASED -> seg19.mode = USED)
+		& (seg20.mode = EXLOCKED -> seg20.prev != RELEASED)
+		& (seg20.mode = USED -> seg20.prev in {PENDING, RELEASED})
+		& (seg20.mode = AVAILABLE -> seg20.prev != RELEASED)
+		& (seg20.prev = PENDING -> seg20.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg20.prev = RELEASED -> seg20.mode = USED)
+		& (seg23.mode = EXLOCKED -> seg23.prev != RELEASED)
+		& (seg23.mode = USED -> seg23.prev in {PENDING, RELEASED})
+		& (seg23.mode = AVAILABLE -> seg23.prev != RELEASED)
+		& (seg23.prev = PENDING -> seg23.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg23.prev = RELEASED -> seg23.mode = USED)
+		& (seg24.mode = EXLOCKED -> seg24.prev != RELEASED)
+		& (seg24.mode = USED -> seg24.prev in {PENDING, RELEASED})
+		& (seg24.mode = AVAILABLE -> seg24.prev != RELEASED)
+		& (seg24.prev = PENDING -> seg24.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg24.prev = RELEASED -> seg24.mode = USED)
+		& (seg25.mode = EXLOCKED -> seg25.prev != RELEASED)
+		& (seg25.mode = USED -> seg25.prev in {PENDING, RELEASED})
+		& (seg25.mode = AVAILABLE -> seg25.prev != RELEASED)
+		& (seg25.prev = PENDING -> seg25.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg25.prev = RELEASED -> seg25.mode = USED)
+		& (seg27.mode = EXLOCKED -> seg27.prev != RELEASED)
+		& (seg27.mode = USED -> seg27.prev in {PENDING, RELEASED})
+		& (seg27.mode = AVAILABLE -> seg27.prev != RELEASED)
+		& (seg27.prev = PENDING -> seg27.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg27.prev = RELEASED -> seg27.mode = USED)
+		& (seg28.mode = EXLOCKED -> seg28.prev != RELEASED)
+		& (seg28.mode = USED -> seg28.prev in {PENDING, RELEASED})
+		& (seg28.mode = AVAILABLE -> seg28.prev != RELEASED)
+		& (seg28.prev = PENDING -> seg28.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg28.prev = RELEASED -> seg28.mode = USED)
+		& (seg29.mode = EXLOCKED -> seg29.prev != RELEASED)
+		& (seg29.mode = USED -> seg29.prev in {PENDING, RELEASED})
+		& (seg29.mode = AVAILABLE -> seg29.prev != RELEASED)
+		& (seg29.prev = PENDING -> seg29.mode in {AVAILABLE, EXLOCKED, USED})
+		& (seg29.prev = RELEASED -> seg29.mode = USED)
+	);
+-------------------------------------------------------------------------------

@@ -1,0 +1,3371 @@
+-------------------------------------------------------------------------------
+-- ############### SWTbhan Lite ############### --
+
+-- Auto-generated SMV model for SWTbahn
+-- DO NOT EDIT - Regenerate with 'tools/generate_smv.sh'
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- Signal Module --
+-- Represents a signal in the track
+-- Inputs:- id_in: frozen var, ID of this signal, number in range 0..15
+--          CMD_in: command for the aspect of the signal
+-------------------------------------------------------------------------------
+MODULE Signal(id_in, CMD_in)
+FROZENVAR
+	id: 0..15;
+VAR
+	ACT : {STOP, GO};
+ASSIGN
+	init(id) := id_in;
+	init(ACT) := STOP;
+	next(ACT) := case
+		ACT != CMD_in : CMD_in;
+		TRUE : ACT;
+	esac;
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-- Point Module --
+-- Represents a point and its track section/segment.
+--      Track related variables are like in LinearSection mostly might
+--      want to change this similar to Vu et al, to use 3 variables for
+--      occupancy instead of 2 (require lots of other changes though).
+-- Inputs:- id_in: frozen var, ID of this point, number in range 0..29
+--          segID_in: frozen var, ID of the segment of the point,
+--                        number in range 0..29
+--          CMD_in: command for the aspect/position of the point,
+--                        enum values "NORMAL" and "REVERSE"
+-------------------------------------------------------------------------------
+MODULE Point(id_in, segID_in, CMD_in)
+FROZENVAR
+	id : 0..29;
+	segID : 0..29;
+VAR
+	occSNR : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	occNS : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	occRS : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	ACT : {NORMAL, INTERMEDIATE, REVERSE};
+	mode : {AVAILABLE, EXLOCKED, USED};
+	prev : {PENDING, RELEASED};
+ASSIGN
+	init(id) := id_in;
+	init(segID) := segID_in;
+	init(ACT) := NORMAL;
+	init(mode) := AVAILABLE;
+	init(prev) := PENDING;
+
+	next(ACT) := case
+		ACT != CMD_in & ACT != INTERMEDIATE : INTERMEDIATE;
+		-- if in INTERMEDIATE, change to CMD_in next
+		ACT = INTERMEDIATE : CMD_in;
+		TRUE : ACT;
+	esac;
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-- Linear Section Module --
+-- Represents a section/segment in the track
+-- Inputs:- id_in: track segment identifier
+-------------------------------------------------------------------------------
+MODULE Linear(id_in)
+FROZENVAR
+	id : 0..29;
+VAR
+	occDown : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	occUp : {FREE, HEADOCC, COMPLETETRAINOCC, TAILOCC, ERROROCC};
+	mode : {AVAILABLE, EXLOCKED, USED};
+	prev : {PENDING, RELEASED};
+ASSIGN
+	init(id) := id_in;
+	init(mode) := AVAILABLE;
+	init(prev) := PENDING;
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-- Route Module --
+-- Represents a route in the interlocked layout
+-- Inputs:- id_in: route identifier
+-------------------------------------------------------------------------------
+MODULE Route(id_in)
+FROZENVAR
+	id : 0..74;
+VAR
+	mode : {FREE, MARKED, ALLOCATING, LOCKED, OCCUPIED};
+	transition : {CAN_DISPATCH, CAN_ALLOCATE, CAN_LOCK, CAN_OCCUPY};
+ASSIGN
+	init(id) := id_in;
+	init(mode) := FREE;
+	init(transition) := CAN_DISPATCH;
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+-- Track Section Module --
+-- This bundles all segments/sections, points, train movement etc.
+-------------------------------------------------------------------------------
+MODULE TrackSection -- Segments/sections + point switching + signal comm
+VAR
+	r0 : Route(0);
+	r1 : Route(1);
+	r2 : Route(2);
+	r3 : Route(3);
+	r4 : Route(4);
+	r5 : Route(5);
+
+	seg18 : Linear(18);
+	seg19 : Linear(19);
+	seg20 : Linear(20);
+	seg9 : Linear(9);
+	seg10 : Linear(10);
+	seg11 : Linear(11);
+	seg7 : Linear(7);
+	seg6 : Linear(6);
+	seg5 : Linear(5);
+	seg27 : Linear(27);
+	seg28 : Linear(28);
+	seg29 : Linear(29);
+
+	point2CMD : {NORMAL, REVERSE};
+	point2 : Point(2, 8, point2CMD);
+
+	point5CMD : {NORMAL, REVERSE};
+	point5 : Point(5, 17, point5CMD);
+
+
+	signal4CMD : {GO, STOP};
+	signal4 : Signal(4, signal4CMD);
+
+	signal10CMD : {GO, STOP};
+	signal10 : Signal(10, signal10CMD);
+
+	signal6CMD : {GO, STOP};
+	signal6 : Signal(6, signal6CMD);
+
+	signal5CMD : {GO, STOP};
+	signal5 : Signal(5, signal5CMD);
+
+	signal3CMD : {GO, STOP};
+	signal3 : Signal(3, signal3CMD);
+
+	signal9CMD : {GO, STOP};
+	signal9 : Signal(9, signal9CMD);
+
+	signal15CMD : {GO, STOP};
+	signal15 : Signal(15, signal15CMD);
+
+	signal14CMD : {GO, STOP};
+	signal14 : Signal(14, signal14CMD);
+
+
+ASSIGN
+	-- SEGMENTS OCCUPANCY INITIAL --
+	init(seg18.occDown) := FREE;
+	init(seg18.occUp) := FREE;
+	init(seg19.occDown) := FREE;
+	init(seg19.occUp) := FREE;
+	init(seg20.occDown) := FREE;
+	init(seg20.occUp) := FREE;
+	init(seg9.occDown) := FREE;
+	init(seg9.occUp) := FREE;
+	init(seg10.occDown) := FREE;
+	init(seg10.occUp) := FREE;
+	init(seg11.occDown) := FREE;
+	init(seg11.occUp) := FREE;
+	init(seg7.occDown) := FREE;
+	init(seg7.occUp) := FREE;
+	init(seg6.occDown) := FREE;
+	init(seg6.occUp) := FREE;
+	init(seg5.occDown) := COMPLETETRAINOCC;
+	init(seg5.occUp) := FREE;
+	init(seg27.occDown) := FREE;
+	init(seg27.occUp) := COMPLETETRAINOCC;
+	init(seg28.occDown) := FREE;
+	init(seg28.occUp) := FREE;
+	init(seg29.occDown) := FREE;
+	init(seg29.occUp) := FREE;
+
+	-- SEGMENTS OCCUPANCY INITIAL --
+	init(point2.occSNR) := FREE;
+	init(point2.occNS) := FREE;
+	init(point2.occRS) := FREE;
+	init(point2CMD) := NORMAL;
+	init(point5.occSNR) := FREE;
+	init(point5.occNS) := FREE;
+	init(point5.occRS) := FREE;
+	init(point5CMD) := NORMAL;
+
+	-- SIGNALS CMD INITIAL --
+	init(signal4CMD) := STOP;
+	init(signal10CMD) := STOP;
+	init(signal6CMD) := STOP;
+	init(signal5CMD) := STOP;
+	init(signal3CMD) := STOP;
+	init(signal9CMD) := STOP;
+	init(signal15CMD) := STOP;
+	init(signal14CMD) := STOP;
+
+	-- NEXTS --
+	-- SIGNALS CMD NEXT --
+	next(signal4CMD) := case
+		(
+			r0.mode = LOCKED
+			| r1.mode = LOCKED
+			| r2.mode = LOCKED
+			| r3.mode = LOCKED
+		)
+		: GO;
+
+		(
+			r0.mode = OCCUPIED
+			| r1.mode = OCCUPIED
+			| r2.mode = OCCUPIED
+			| r3.mode = OCCUPIED
+		)
+		: STOP;
+
+		TRUE : signal4CMD;
+	esac;
+
+	next(signal10CMD) := case
+		TRUE : signal10CMD;
+	esac;
+
+	next(signal6CMD) := case
+		TRUE : signal6CMD;
+	esac;
+
+	next(signal5CMD) := case
+		(
+			r1.mode = LOCKED
+			| r2.mode = LOCKED
+		)
+		: GO;
+
+		(
+			r1.mode = OCCUPIED
+			| r2.mode = OCCUPIED
+		)
+		: STOP;
+
+		TRUE : signal5CMD;
+	esac;
+
+	next(signal3CMD) := case
+		TRUE : signal3CMD;
+	esac;
+
+	next(signal9CMD) := case
+		(
+			r0.mode = LOCKED
+			| r3.mode = LOCKED
+			| r4.mode = LOCKED
+			| r5.mode = LOCKED
+		)
+		: GO;
+
+		(
+			r0.mode = OCCUPIED
+			| r3.mode = OCCUPIED
+			| r4.mode = OCCUPIED
+			| r5.mode = OCCUPIED
+		)
+		: STOP;
+
+		TRUE : signal9CMD;
+	esac;
+
+	next(signal15CMD) := case
+		TRUE : signal15CMD;
+	esac;
+
+	next(signal14CMD) := case
+		(
+			r4.mode = LOCKED
+			| r5.mode = LOCKED
+		)
+		: GO;
+
+		(
+			r4.mode = OCCUPIED
+			| r5.mode = OCCUPIED
+		)
+		: STOP;
+
+		TRUE : signal14CMD;
+	esac;
+
+
+	-- POINTS CMD NEXT --
+	next(point2CMD) := case
+		r0.mode in {ALLOCATING, LOCKED, OCCUPIED} | r3.mode in {ALLOCATING, LOCKED, OCCUPIED} : REVERSE;
+		TRUE : NORMAL;
+	esac;
+
+	next(point5CMD) := case
+		r0.mode in {ALLOCATING, LOCKED, OCCUPIED} | r3.mode in {ALLOCATING, LOCKED, OCCUPIED} : REVERSE;
+		TRUE : NORMAL;
+	esac;
+
+
+	-- SEGMENTS/SECTIONS MODE NEXT --
+	next(seg18.mode) := case
+		seg18.mode = AVAILABLE
+		& (r0.mode = ALLOCATING | r5.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg18.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+		(
+			r0.mode = OCCUPIED
+			& point5.mode = USED
+			& seg19.mode = EXLOCKED
+			& seg18.occDown = FREE & seg18.occUp = FREE
+		)
+		| (
+			r5.mode = OCCUPIED
+			& point5.mode = USED
+			& seg19.mode = EXLOCKED
+			& seg18.occDown = FREE & seg18.occUp = FREE
+		)
+		)
+		: USED;
+
+		seg18.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+			& (seg19.mode = USED | seg19.prev = PENDING)
+		)
+		| (
+			r5.mode = OCCUPIED
+			& (seg19.mode = USED | seg19.prev = PENDING)
+		)
+		)
+		& (seg18.occDown = FREE & seg18.occUp = FREE)
+		& seg18.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg18.mode;
+	esac;
+
+	next(seg19.mode) := case
+		seg19.mode = AVAILABLE
+		& (r0.mode = ALLOCATING | r5.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg19.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+		(
+			r0.mode = OCCUPIED
+			& seg18.mode = USED
+			& seg20.mode = EXLOCKED
+			& seg19.occDown = FREE & seg19.occUp = FREE
+		)
+		| (
+			r5.mode = OCCUPIED
+			& seg18.mode = USED
+			& seg20.mode = EXLOCKED
+			& seg19.occDown = FREE & seg19.occUp = FREE
+		)
+		)
+		: USED;
+
+		seg19.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+			& (seg20.mode = USED | seg20.prev = PENDING)
+		)
+		| (
+			r5.mode = OCCUPIED
+			& (seg20.mode = USED | seg20.prev = PENDING)
+		)
+		)
+		& (seg19.occDown = FREE & seg19.occUp = FREE)
+		& seg19.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg19.mode;
+	esac;
+
+	next(seg20.mode) := case
+		seg20.mode = AVAILABLE
+		& (r0.mode = ALLOCATING | r5.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg20.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+		(
+			r0.mode = OCCUPIED
+			& seg19.mode = USED
+			& seg20.occUp in {HEADOCC, COMPLETETRAINOCC}
+		)
+		| (
+			r5.mode = OCCUPIED
+			& seg19.mode = USED
+			& seg20.occUp in {HEADOCC, COMPLETETRAINOCC}
+		)
+		)
+		: USED;
+
+		seg20.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+		)
+		| (
+			r5.mode = OCCUPIED
+		)
+		)
+		& (seg20.occDown = FREE & seg20.occUp = FREE)
+		& seg20.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg20.mode;
+	esac;
+
+	next(seg9.mode) := case
+		seg9.mode = AVAILABLE
+		& (r1.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg9.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+			r1.mode = OCCUPIED
+			& point2.mode = USED
+			& seg10.mode = EXLOCKED
+			& seg9.occDown = FREE & seg9.occUp = FREE
+		)
+		: USED;
+
+		seg9.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+			r1.mode = OCCUPIED
+			& (seg10.mode = USED | seg10.prev = PENDING)
+		)
+		& (seg9.occDown = FREE & seg9.occUp = FREE)
+		& seg9.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg9.mode;
+	esac;
+
+	next(seg10.mode) := case
+		seg10.mode = AVAILABLE
+		& (r1.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg10.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+			r1.mode = OCCUPIED
+			& seg9.mode = USED
+			& seg11.mode = EXLOCKED
+			& seg10.occDown = FREE & seg10.occUp = FREE
+		)
+		: USED;
+
+		seg10.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+			r1.mode = OCCUPIED
+			& (seg11.mode = USED | seg11.prev = PENDING)
+		)
+		& (seg10.occDown = FREE & seg10.occUp = FREE)
+		& seg10.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg10.mode;
+	esac;
+
+	next(seg11.mode) := case
+		seg11.mode = AVAILABLE
+		& (r1.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg11.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+			r1.mode = OCCUPIED
+			& seg10.mode = USED
+			& seg11.occUp in {HEADOCC, COMPLETETRAINOCC}
+		)
+		: USED;
+
+		seg11.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+			r1.mode = OCCUPIED
+		)
+		& (seg11.occDown = FREE & seg11.occUp = FREE)
+		& seg11.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg11.mode;
+	esac;
+
+	next(seg7.mode) := case
+		seg7.mode = AVAILABLE
+		& (r2.mode = ALLOCATING | r3.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg7.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+		(
+			r2.mode = OCCUPIED
+			& point2.mode = USED
+			& seg6.mode = EXLOCKED
+			& seg7.occDown = FREE & seg7.occUp = FREE
+		)
+		| (
+			r3.mode = OCCUPIED
+			& point2.mode = USED
+			& seg6.mode = EXLOCKED
+			& seg7.occDown = FREE & seg7.occUp = FREE
+		)
+		)
+		: USED;
+
+		seg7.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+		(
+			r2.mode = OCCUPIED
+			& (seg6.mode = USED | seg6.prev = PENDING)
+		)
+		| (
+			r3.mode = OCCUPIED
+			& (seg6.mode = USED | seg6.prev = PENDING)
+		)
+		)
+		& (seg7.occDown = FREE & seg7.occUp = FREE)
+		& seg7.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg7.mode;
+	esac;
+
+	next(seg6.mode) := case
+		seg6.mode = AVAILABLE
+		& (r2.mode = ALLOCATING | r3.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg6.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+		(
+			r2.mode = OCCUPIED
+			& seg7.mode = USED
+			& seg5.mode = EXLOCKED
+			& seg6.occDown = FREE & seg6.occUp = FREE
+		)
+		| (
+			r3.mode = OCCUPIED
+			& seg7.mode = USED
+			& seg5.mode = EXLOCKED
+			& seg6.occDown = FREE & seg6.occUp = FREE
+		)
+		)
+		: USED;
+
+		seg6.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+		(
+			r2.mode = OCCUPIED
+			& (seg5.mode = USED | seg5.prev = PENDING)
+		)
+		| (
+			r3.mode = OCCUPIED
+			& (seg5.mode = USED | seg5.prev = PENDING)
+		)
+		)
+		& (seg6.occDown = FREE & seg6.occUp = FREE)
+		& seg6.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg6.mode;
+	esac;
+
+	next(seg5.mode) := case
+		seg5.mode = AVAILABLE
+		& (r2.mode = ALLOCATING | r3.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg5.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+		(
+			r2.mode = OCCUPIED
+			& seg6.mode = USED
+			& seg5.occDown in {HEADOCC, COMPLETETRAINOCC}
+		)
+		| (
+			r3.mode = OCCUPIED
+			& seg6.mode = USED
+			& seg5.occDown in {HEADOCC, COMPLETETRAINOCC}
+		)
+		)
+		: USED;
+
+		seg5.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+		(
+			r2.mode = OCCUPIED
+		)
+		| (
+			r3.mode = OCCUPIED
+		)
+		)
+		& (seg5.occDown = FREE & seg5.occUp = FREE)
+		& seg5.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg5.mode;
+	esac;
+
+	next(seg27.mode) := case
+		seg27.mode = AVAILABLE
+		& (r4.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg27.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+			r4.mode = OCCUPIED
+			& point5.mode = USED
+			& seg28.mode = EXLOCKED
+			& seg27.occDown = FREE & seg27.occUp = FREE
+		)
+		: USED;
+
+		seg27.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+			r4.mode = OCCUPIED
+			& (seg28.mode = USED | seg28.prev = PENDING)
+		)
+		& (seg27.occDown = FREE & seg27.occUp = FREE)
+		& seg27.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg27.mode;
+	esac;
+
+	next(seg28.mode) := case
+		seg28.mode = AVAILABLE
+		& (r4.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg28.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+			r4.mode = OCCUPIED
+			& seg27.mode = USED
+			& seg29.mode = EXLOCKED
+			& seg28.occDown = FREE & seg28.occUp = FREE
+		)
+		: USED;
+
+		seg28.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+			r4.mode = OCCUPIED
+			& (seg29.mode = USED | seg29.prev = PENDING)
+		)
+		& (seg28.occDown = FREE & seg28.occUp = FREE)
+		& seg28.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg28.mode;
+	esac;
+
+	next(seg29.mode) := case
+		seg29.mode = AVAILABLE
+		& (r4.mode = ALLOCATING)
+		: EXLOCKED;
+
+		seg29.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+			r4.mode = OCCUPIED
+			& seg28.mode = USED
+			& seg29.occDown in {HEADOCC, COMPLETETRAINOCC}
+		)
+		: USED;
+
+		seg29.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+			r4.mode = OCCUPIED
+		)
+		& (seg29.occDown = FREE & seg29.occUp = FREE)
+		& seg29.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : seg29.mode;
+	esac;
+
+	next(point2.mode) := case
+		point2.mode = AVAILABLE
+		& (r0.mode = ALLOCATING | r1.mode = ALLOCATING | r2.mode = ALLOCATING | r3.mode = ALLOCATING)
+		: EXLOCKED;
+
+		point2.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+		(
+			r0.mode = OCCUPIED
+			& point5.mode = EXLOCKED
+			& point2.ACT = REVERSE
+			& point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE
+		)
+		| (
+			r1.mode = OCCUPIED
+			& seg9.mode = EXLOCKED
+			& point2.ACT = NORMAL
+			& point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE
+		)
+		| (
+			r2.mode = OCCUPIED
+			& seg7.mode = EXLOCKED
+			& point2.ACT = NORMAL
+			& point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE
+		)
+		| (
+			r3.mode = OCCUPIED
+			& point5.mode = USED
+			& seg7.mode = EXLOCKED
+			& point2.ACT = REVERSE
+			& point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE
+		)
+		)
+		: USED;
+
+		point2.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+			& ((point5.mode = USED | point5.prev = PENDING) & point5.ACT = REVERSE)
+			& point2.ACT = REVERSE
+		)
+		| (
+			r1.mode = OCCUPIED
+			& (seg9.mode = USED | seg9.prev = PENDING)
+			& point2.ACT = NORMAL
+		)
+		| (
+			r2.mode = OCCUPIED
+			& (seg7.mode = USED | seg7.prev = PENDING)
+			& point2.ACT = NORMAL
+		)
+		| (
+			r3.mode = OCCUPIED
+			& (seg7.mode = USED | seg7.prev = PENDING)
+			& point2.ACT = REVERSE
+		)
+		)
+		& (point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE)
+		& point2.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : point2.mode;
+	esac;
+
+	next(point5.mode) := case
+		point5.mode = AVAILABLE
+		& (r0.mode = ALLOCATING | r3.mode = ALLOCATING | r4.mode = ALLOCATING | r5.mode = ALLOCATING)
+		: EXLOCKED;
+
+		point5.mode = EXLOCKED
+		-- previous element in USED and next element in EXLOCKED
+		& (
+		(
+			r0.mode = OCCUPIED
+			& point2.mode = USED
+			& seg18.mode = EXLOCKED
+			& point5.ACT = REVERSE
+			& point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE
+		)
+		| (
+			r3.mode = OCCUPIED
+			& point2.mode = EXLOCKED
+			& point5.ACT = REVERSE
+			& point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE
+		)
+		| (
+			r4.mode = OCCUPIED
+			& seg27.mode = EXLOCKED
+			& point5.ACT = NORMAL
+			& point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE
+		)
+		| (
+			r5.mode = OCCUPIED
+			& seg18.mode = EXLOCKED
+			& point5.ACT = NORMAL
+			& point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE
+		)
+		)
+		: USED;
+
+		point5.mode = USED
+		-- next element mode in USED or next element prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+			& (seg18.mode = USED | seg18.prev = PENDING)
+			& point5.ACT = REVERSE
+		)
+		| (
+			r3.mode = OCCUPIED
+			& ((point2.mode = USED | point2.prev = PENDING) & point2.ACT = REVERSE)
+			& point5.ACT = REVERSE
+		)
+		| (
+			r4.mode = OCCUPIED
+			& (seg27.mode = USED | seg27.prev = PENDING)
+			& point5.ACT = NORMAL
+		)
+		| (
+			r5.mode = OCCUPIED
+			& (seg18.mode = USED | seg18.prev = PENDING)
+			& point5.ACT = NORMAL
+		)
+		)
+		& (point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE)
+		& point5.prev = RELEASED
+		: AVAILABLE;
+
+		TRUE : point5.mode;
+	esac;
+
+	-- SEGMENTS/SECTIONS PREV NEXT --
+	next(seg18.prev) := case
+		seg18.prev = PENDING
+		& seg18.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+			& (seg18.occDown = FREE & seg18.occUp = FREE)
+			& (point5.mode = AVAILABLE | point5.mode = EXLOCKED)
+			& point5.prev = PENDING
+			& (point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE)
+		)
+		| (
+			r5.mode = OCCUPIED
+			& (seg18.occDown = FREE & seg18.occUp = FREE)
+			& (point5.mode = AVAILABLE | point5.mode = EXLOCKED)
+			& point5.prev = PENDING
+			& (point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE)
+		)
+		)
+		: RELEASED;
+
+		seg18.prev = RELEASED & seg18.mode = AVAILABLE : PENDING;
+
+		TRUE : seg18.prev;
+	esac;
+
+	next(seg19.prev) := case
+		seg19.prev = PENDING
+		& seg19.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+			& (seg19.occDown = FREE & seg19.occUp = FREE)
+			& (seg18.mode = AVAILABLE | seg18.mode = EXLOCKED)
+			& seg18.prev = PENDING
+			& (seg18.occDown = FREE & seg18.occUp = FREE)
+		)
+		| (
+			r5.mode = OCCUPIED
+			& (seg19.occDown = FREE & seg19.occUp = FREE)
+			& (seg18.mode = AVAILABLE | seg18.mode = EXLOCKED)
+			& seg18.prev = PENDING
+			& (seg18.occDown = FREE & seg18.occUp = FREE)
+		)
+		)
+		: RELEASED;
+
+		seg19.prev = RELEASED & seg19.mode = AVAILABLE : PENDING;
+
+		TRUE : seg19.prev;
+	esac;
+
+	next(seg20.prev) := case
+		seg20.prev = PENDING
+		& seg20.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+			& seg20.occUp in {HEADOCC, COMPLETETRAINOCC}
+			& (seg19.mode = AVAILABLE | seg19.mode = EXLOCKED)
+			& seg19.prev = PENDING
+			& (seg19.occDown = FREE & seg19.occUp = FREE)
+		)
+		| (
+			r5.mode = OCCUPIED
+			& seg20.occUp in {HEADOCC, COMPLETETRAINOCC}
+			& (seg19.mode = AVAILABLE | seg19.mode = EXLOCKED)
+			& seg19.prev = PENDING
+			& (seg19.occDown = FREE & seg19.occUp = FREE)
+		)
+		)
+		: RELEASED;
+
+		seg20.prev = RELEASED & seg20.mode = AVAILABLE : PENDING;
+
+		TRUE : seg20.prev;
+	esac; -- End segment
+
+	next(seg9.prev) := case
+		seg9.prev = PENDING
+		& seg9.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+			r1.mode = OCCUPIED
+			& (seg9.occDown = FREE & seg9.occUp = FREE)
+			& (point2.mode = AVAILABLE | point2.mode = EXLOCKED)
+			& point2.prev = PENDING
+			& (point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE)
+		)
+		: RELEASED;
+
+		seg9.prev = RELEASED & seg9.mode = AVAILABLE : PENDING;
+
+		TRUE : seg9.prev;
+	esac;
+
+	next(seg10.prev) := case
+		seg10.prev = PENDING
+		& seg10.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+			r1.mode = OCCUPIED
+			& (seg10.occDown = FREE & seg10.occUp = FREE)
+			& (seg9.mode = AVAILABLE | seg9.mode = EXLOCKED)
+			& seg9.prev = PENDING
+			& (seg9.occDown = FREE & seg9.occUp = FREE)
+		)
+		: RELEASED;
+
+		seg10.prev = RELEASED & seg10.mode = AVAILABLE : PENDING;
+
+		TRUE : seg10.prev;
+	esac;
+
+	next(seg11.prev) := case
+		seg11.prev = PENDING
+		& seg11.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+			r1.mode = OCCUPIED
+			& seg11.occUp in {HEADOCC, COMPLETETRAINOCC}
+			& (seg10.mode = AVAILABLE | seg10.mode = EXLOCKED)
+			& seg10.prev = PENDING
+			& (seg10.occDown = FREE & seg10.occUp = FREE)
+		)
+		: RELEASED;
+
+		seg11.prev = RELEASED & seg11.mode = AVAILABLE : PENDING;
+
+		TRUE : seg11.prev;
+	esac; -- End segment
+
+	next(seg7.prev) := case
+		seg7.prev = PENDING
+		& seg7.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+		(
+			r2.mode = OCCUPIED
+			& (seg7.occDown = FREE & seg7.occUp = FREE)
+			& (point2.mode = AVAILABLE | point2.mode = EXLOCKED)
+			& point2.prev = PENDING
+			& (point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE)
+		)
+		| (
+			r3.mode = OCCUPIED
+			& (seg7.occDown = FREE & seg7.occUp = FREE)
+			& (point2.mode = AVAILABLE | point2.mode = EXLOCKED)
+			& point2.prev = PENDING
+			& (point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE)
+		)
+		)
+		: RELEASED;
+
+		seg7.prev = RELEASED & seg7.mode = AVAILABLE : PENDING;
+
+		TRUE : seg7.prev;
+	esac;
+
+	next(seg6.prev) := case
+		seg6.prev = PENDING
+		& seg6.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+		(
+			r2.mode = OCCUPIED
+			& (seg6.occDown = FREE & seg6.occUp = FREE)
+			& (seg7.mode = AVAILABLE | seg7.mode = EXLOCKED)
+			& seg7.prev = PENDING
+			& (seg7.occDown = FREE & seg7.occUp = FREE)
+		)
+		| (
+			r3.mode = OCCUPIED
+			& (seg6.occDown = FREE & seg6.occUp = FREE)
+			& (seg7.mode = AVAILABLE | seg7.mode = EXLOCKED)
+			& seg7.prev = PENDING
+			& (seg7.occDown = FREE & seg7.occUp = FREE)
+		)
+		)
+		: RELEASED;
+
+		seg6.prev = RELEASED & seg6.mode = AVAILABLE : PENDING;
+
+		TRUE : seg6.prev;
+	esac;
+
+	next(seg5.prev) := case
+		seg5.prev = PENDING
+		& seg5.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+		(
+			r2.mode = OCCUPIED
+			& seg5.occDown in {HEADOCC, COMPLETETRAINOCC}
+			& (seg6.mode = AVAILABLE | seg6.mode = EXLOCKED)
+			& seg6.prev = PENDING
+			& (seg6.occDown = FREE & seg6.occUp = FREE)
+		)
+		| (
+			r3.mode = OCCUPIED
+			& seg5.occDown in {HEADOCC, COMPLETETRAINOCC}
+			& (seg6.mode = AVAILABLE | seg6.mode = EXLOCKED)
+			& seg6.prev = PENDING
+			& (seg6.occDown = FREE & seg6.occUp = FREE)
+		)
+		)
+		: RELEASED;
+
+		seg5.prev = RELEASED & seg5.mode = AVAILABLE : PENDING;
+
+		TRUE : seg5.prev;
+	esac; -- End segment
+
+	next(seg27.prev) := case
+		seg27.prev = PENDING
+		& seg27.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+			r4.mode = OCCUPIED
+			& (seg27.occDown = FREE & seg27.occUp = FREE)
+			& (point5.mode = AVAILABLE | point5.mode = EXLOCKED)
+			& point5.prev = PENDING
+			& (point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE)
+		)
+		: RELEASED;
+
+		seg27.prev = RELEASED & seg27.mode = AVAILABLE : PENDING;
+
+		TRUE : seg27.prev;
+	esac;
+
+	next(seg28.prev) := case
+		seg28.prev = PENDING
+		& seg28.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+			r4.mode = OCCUPIED
+			& (seg28.occDown = FREE & seg28.occUp = FREE)
+			& (seg27.mode = AVAILABLE | seg27.mode = EXLOCKED)
+			& seg27.prev = PENDING
+			& (seg27.occDown = FREE & seg27.occUp = FREE)
+		)
+		: RELEASED;
+
+		seg28.prev = RELEASED & seg28.mode = AVAILABLE : PENDING;
+
+		TRUE : seg28.prev;
+	esac;
+
+	next(seg29.prev) := case
+		seg29.prev = PENDING
+		& seg29.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+			r4.mode = OCCUPIED
+			& seg29.occDown in {HEADOCC, COMPLETETRAINOCC}
+			& (seg28.mode = AVAILABLE | seg28.mode = EXLOCKED)
+			& seg28.prev = PENDING
+			& (seg28.occDown = FREE & seg28.occUp = FREE)
+		)
+		: RELEASED;
+
+		seg29.prev = RELEASED & seg29.mode = AVAILABLE : PENDING;
+
+		TRUE : seg29.prev;
+	esac; -- End segment
+
+	next(point2.prev) := case
+		point2.prev = PENDING
+		& point2.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+			& (point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE)
+			& point2.ACT = REVERSE
+		)
+		| (
+			r1.mode = OCCUPIED
+			& (point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE)
+			& point2.ACT = NORMAL
+		)
+		| (
+			r2.mode = OCCUPIED
+			& (point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE)
+			& point2.ACT = NORMAL
+		)
+		| (
+			r3.mode = OCCUPIED
+			& (point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE)
+			& (point5.mode = AVAILABLE | point5.mode = EXLOCKED)
+			& point5.prev = PENDING
+			& (point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE)
+			& point2.ACT = REVERSE
+		)
+		)
+		: RELEASED;
+
+		point2.prev = RELEASED & point2.mode = AVAILABLE : PENDING;
+
+		TRUE : point2.prev;
+	esac;
+
+	next(point5.prev) := case
+		point5.prev = PENDING
+		& point5.mode = USED
+		-- previous element released with mode in AVAILABLE and prev in PENDING
+		& (
+		(
+			r0.mode = OCCUPIED
+			& (point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE)
+			& (point2.mode = AVAILABLE | point2.mode = EXLOCKED)
+			& point2.prev = PENDING
+			& (point2.occSNR = FREE & point2.occNS = FREE & point2.occRS = FREE)
+			& point5.ACT = REVERSE
+		)
+		| (
+			r3.mode = OCCUPIED
+			& (point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE)
+			& point5.ACT = REVERSE
+		)
+		| (
+			r4.mode = OCCUPIED
+			& (point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE)
+			& point5.ACT = NORMAL
+		)
+		| (
+			r5.mode = OCCUPIED
+			& (point5.occSNR = FREE & point5.occNS = FREE & point5.occRS = FREE)
+			& point5.ACT = NORMAL
+		)
+		)
+		: RELEASED;
+
+		point5.prev = RELEASED & point5.mode = AVAILABLE : PENDING;
+
+		TRUE : point5.prev;
+	esac;
+
+	-- SEGMENTS OCCUPANCY NEXT --
+	-- seg18
+	next(seg18.occDown) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg18.occDown = FREE & seg19.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg18.occDown = FREE & seg18.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg18.occDown = FREE & seg18.mode != AVAILABLE
+		& seg19.occDown = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg18.occDown = FREE & seg18.mode != AVAILABLE
+		& seg19.occDown = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg18.occDown = FREE & seg18.mode != AVAILABLE
+		& seg19.occDown = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present and signal is GO
+		seg18.occDown = HEADOCC & signal9.ACT = GO : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train collects here if head present and signal is STOP
+		seg18.occDown = HEADOCC & signal9.ACT = STOP : COMPLETETRAINOCC;
+
+		-- train stays here if train is present and signal is STOP
+		seg18.occDown = COMPLETETRAINOCC & signal9.ACT = STOP : COMPLETETRAINOCC;
+
+		-- train moves on with head if train is present and signal is GO
+		seg18.occDown = COMPLETETRAINOCC & signal9.ACT = GO : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg18.occDown = TAILOCC : FREE;
+
+		TRUE : seg18.occDown;
+	esac;
+
+	next(seg18.occUp) := case
+		-- stays FREE if predecessor point has no train (per ACT position)
+		seg18.occUp = FREE & ((point5.ACT = NORMAL & point5.occNS in {FREE, ERROROCC}) | (point5.ACT = REVERSE & point5.occRS in {FREE, ERROROCC})) : FREE;
+
+		-- stays FREE if not allocated
+		seg18.occUp = FREE & seg18.mode = AVAILABLE : FREE;
+
+		-- non-deterministic head entry with point5.ACT = NORMAL
+		seg18.occUp = FREE & seg18.mode != AVAILABLE
+		& point5.ACT = NORMAL & point5.occNS = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- deterministic head entry with point5.ACT = NORMAL
+		seg18.occUp = FREE & seg18.mode != AVAILABLE
+		& point5.ACT = NORMAL & point5.occNS = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC: tail without head with point5.ACT = NORMAL
+		seg18.occUp = FREE & seg18.mode != AVAILABLE
+		& point5.ACT = NORMAL & point5.occNS = TAILOCC
+		: ERROROCC;
+
+		-- non-deterministic head entry with point5.ACT = REVERSE
+		seg18.occUp = FREE & seg18.mode != AVAILABLE
+		& point5.ACT = REVERSE & point5.occRS = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- deterministic head entry with point5.ACT = REVERSE
+		seg18.occUp = FREE & seg18.mode != AVAILABLE
+		& point5.ACT = REVERSE & point5.occRS = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC: tail without head with point5.ACT = REVERSE
+		seg18.occUp = FREE & seg18.mode != AVAILABLE
+		& point5.ACT = REVERSE & point5.occRS = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg18.occUp = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg18.occUp = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg18.occUp = TAILOCC : FREE;
+
+		TRUE : seg18.occUp;
+	esac;
+
+	-- seg19
+	next(seg19.occDown) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg19.occDown = FREE & seg20.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg19.occDown = FREE & seg19.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg19.occDown = FREE & seg19.mode != AVAILABLE
+		& seg20.occDown = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg19.occDown = FREE & seg19.mode != AVAILABLE
+		& seg20.occDown = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg19.occDown = FREE & seg19.mode != AVAILABLE
+		& seg20.occDown = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg19.occDown = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg19.occDown = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg19.occDown = TAILOCC : FREE;
+
+		TRUE : seg19.occDown;
+	esac;
+
+	next(seg19.occUp) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg19.occUp = FREE & seg18.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg19.occUp = FREE & seg19.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg19.occUp = FREE & seg19.mode != AVAILABLE
+		& seg18.occUp = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg19.occUp = FREE & seg19.mode != AVAILABLE
+		& seg18.occUp = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg19.occUp = FREE & seg19.mode != AVAILABLE
+		& seg18.occUp = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg19.occUp = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg19.occUp = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg19.occUp = TAILOCC : FREE;
+
+		TRUE : seg19.occUp;
+	esac;
+
+	-- seg20
+	next(seg20.occDown) := case
+		-- stays FREE as no train can enter from out of bounds
+		seg20.occDown = FREE : FREE;
+
+		-- ERROROCC if head of a train is here, as the tail has no previous segment
+		seg20.occDown = HEADOCC : ERROROCC;
+
+		-- stays COMPLETETRAINOCC if the segment is not in USED mode
+		seg20.occDown = COMPLETETRAINOCC & seg20.mode != USED : COMPLETETRAINOCC;
+
+		-- train moves on with head if train is present
+		seg20.occDown = COMPLETETRAINOCC & seg20.mode = USED : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg20.occDown = TAILOCC : FREE;
+
+		TRUE : seg20.occDown;
+	esac;
+
+	next(seg20.occUp) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg20.occUp = FREE & seg19.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg20.occUp = FREE & seg20.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg20.occUp = FREE & seg20.mode != AVAILABLE
+		& seg19.occUp = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg20.occUp = FREE & seg20.mode != AVAILABLE
+		& seg19.occUp = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg20.occUp = FREE & seg20.mode != AVAILABLE
+		& seg19.occUp = TAILOCC
+		: ERROROCC;
+
+		-- train collects here if head present and signal is STOP
+		seg20.occUp = HEADOCC & signal10.ACT = STOP : COMPLETETRAINOCC;
+
+		-- ERROROCC if train head present and signal is GO
+		seg20.occUp = HEADOCC & signal10.ACT = GO : ERROROCC;
+
+		-- train stays here and signal is STOP
+		seg20.occUp = COMPLETETRAINOCC & signal10.ACT = STOP : COMPLETETRAINOCC;
+
+		-- ERROROCC if train in COMPLETETRAINOCC and signal is GO
+		seg20.occUp = COMPLETETRAINOCC & signal10.ACT = GO : ERROROCC;
+
+		-- ERROROCC if train tail is present
+		seg20.occUp = TAILOCC : ERROROCC;
+
+		TRUE : seg20.occUp;
+	esac;
+
+	-- seg9
+	next(seg9.occDown) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg9.occDown = FREE & seg10.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg9.occDown = FREE & seg9.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg9.occDown = FREE & seg9.mode != AVAILABLE
+		& seg10.occDown = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg9.occDown = FREE & seg9.mode != AVAILABLE
+		& seg10.occDown = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg9.occDown = FREE & seg9.mode != AVAILABLE
+		& seg10.occDown = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present and signal is GO
+		seg9.occDown = HEADOCC & signal5.ACT = GO : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train collects here if head present and signal is STOP
+		seg9.occDown = HEADOCC & signal5.ACT = STOP : COMPLETETRAINOCC;
+
+		-- train stays here if train is present and signal is STOP
+		seg9.occDown = COMPLETETRAINOCC & signal5.ACT = STOP : COMPLETETRAINOCC;
+
+		-- train moves on with head if train is present and signal is GO
+		seg9.occDown = COMPLETETRAINOCC & signal5.ACT = GO : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg9.occDown = TAILOCC : FREE;
+
+		TRUE : seg9.occDown;
+	esac;
+
+	next(seg9.occUp) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg9.occUp = FREE & point2.occSNR in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg9.occUp = FREE & seg9.mode = AVAILABLE : FREE;
+
+		-- train blocked at signal STOP regardless of predecessor state
+		seg9.occUp = FREE & seg9.mode != AVAILABLE
+		& point2.occSNR in {HEADOCC, COMPLETETRAINOCC} & signal5.ACT = STOP
+		: FREE;
+
+		-- non-deterministic head entry if previous segment has head and signal is GO
+		seg9.occUp = FREE & seg9.mode != AVAILABLE
+		& point2.occSNR = HEADOCC & signal5.ACT = GO
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train and signal is GO
+		seg9.occUp = FREE & seg9.mode != AVAILABLE
+		& point2.occSNR = COMPLETETRAINOCC & signal5.ACT = GO
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		-- and signal is GO
+		seg9.occUp = FREE & seg9.mode != AVAILABLE
+		& point2.occSNR = TAILOCC & signal5.ACT = GO
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg9.occUp = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg9.occUp = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg9.occUp = TAILOCC : FREE;
+
+		TRUE : seg9.occUp;
+	esac;
+
+	-- seg10
+	next(seg10.occDown) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg10.occDown = FREE & seg11.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg10.occDown = FREE & seg10.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg10.occDown = FREE & seg10.mode != AVAILABLE
+		& seg11.occDown = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg10.occDown = FREE & seg10.mode != AVAILABLE
+		& seg11.occDown = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg10.occDown = FREE & seg10.mode != AVAILABLE
+		& seg11.occDown = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg10.occDown = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg10.occDown = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg10.occDown = TAILOCC : FREE;
+
+		TRUE : seg10.occDown;
+	esac;
+
+	next(seg10.occUp) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg10.occUp = FREE & seg9.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg10.occUp = FREE & seg10.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg10.occUp = FREE & seg10.mode != AVAILABLE
+		& seg9.occUp = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg10.occUp = FREE & seg10.mode != AVAILABLE
+		& seg9.occUp = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg10.occUp = FREE & seg10.mode != AVAILABLE
+		& seg9.occUp = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg10.occUp = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg10.occUp = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg10.occUp = TAILOCC : FREE;
+
+		TRUE : seg10.occUp;
+	esac;
+
+	-- seg11
+	next(seg11.occDown) := case
+		-- stays FREE as no train can enter from out of bounds
+		seg11.occDown = FREE : FREE;
+
+		-- ERROROCC if head of a train is here, as the tail has no previous segment
+		seg11.occDown = HEADOCC : ERROROCC;
+
+		-- stays COMPLETETRAINOCC if the segment is not in USED mode
+		seg11.occDown = COMPLETETRAINOCC & seg11.mode != USED : COMPLETETRAINOCC;
+
+		-- train moves on with head if train is present
+		seg11.occDown = COMPLETETRAINOCC & seg11.mode = USED : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg11.occDown = TAILOCC : FREE;
+
+		TRUE : seg11.occDown;
+	esac;
+
+	next(seg11.occUp) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg11.occUp = FREE & seg10.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg11.occUp = FREE & seg11.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg11.occUp = FREE & seg11.mode != AVAILABLE
+		& seg10.occUp = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg11.occUp = FREE & seg11.mode != AVAILABLE
+		& seg10.occUp = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg11.occUp = FREE & seg11.mode != AVAILABLE
+		& seg10.occUp = TAILOCC
+		: ERROROCC;
+
+		-- train collects here if head present and signal is STOP
+		seg11.occUp = HEADOCC & signal6.ACT = STOP : COMPLETETRAINOCC;
+
+		-- ERROROCC if train head present and signal is GO
+		seg11.occUp = HEADOCC & signal6.ACT = GO : ERROROCC;
+
+		-- train stays here and signal is STOP
+		seg11.occUp = COMPLETETRAINOCC & signal6.ACT = STOP : COMPLETETRAINOCC;
+
+		-- ERROROCC if train in COMPLETETRAINOCC and signal is GO
+		seg11.occUp = COMPLETETRAINOCC & signal6.ACT = GO : ERROROCC;
+
+		-- ERROROCC if train tail is present
+		seg11.occUp = TAILOCC : ERROROCC;
+
+		TRUE : seg11.occUp;
+	esac;
+
+	-- seg7
+	next(seg7.occDown) := case
+		-- stays FREE if predecessor point has no train (per ACT position)
+		seg7.occDown = FREE & ((point2.ACT = NORMAL & point2.occNS in {FREE, ERROROCC}) | (point2.ACT = REVERSE & point2.occRS in {FREE, ERROROCC})) : FREE;
+
+		-- stays FREE if not allocated
+		seg7.occDown = FREE & seg7.mode = AVAILABLE : FREE;
+
+		-- non-deterministic head entry with point2.ACT = NORMAL
+		seg7.occDown = FREE & seg7.mode != AVAILABLE
+		& point2.ACT = NORMAL & point2.occNS = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- deterministic head entry with point2.ACT = NORMAL
+		seg7.occDown = FREE & seg7.mode != AVAILABLE
+		& point2.ACT = NORMAL & point2.occNS = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC: tail without head with point2.ACT = NORMAL
+		seg7.occDown = FREE & seg7.mode != AVAILABLE
+		& point2.ACT = NORMAL & point2.occNS = TAILOCC
+		: ERROROCC;
+
+		-- non-deterministic head entry with point2.ACT = REVERSE
+		seg7.occDown = FREE & seg7.mode != AVAILABLE
+		& point2.ACT = REVERSE & point2.occRS = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- deterministic head entry with point2.ACT = REVERSE
+		seg7.occDown = FREE & seg7.mode != AVAILABLE
+		& point2.ACT = REVERSE & point2.occRS = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC: tail without head with point2.ACT = REVERSE
+		seg7.occDown = FREE & seg7.mode != AVAILABLE
+		& point2.ACT = REVERSE & point2.occRS = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg7.occDown = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg7.occDown = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg7.occDown = TAILOCC : FREE;
+
+		TRUE : seg7.occDown;
+	esac;
+
+	next(seg7.occUp) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg7.occUp = FREE & seg6.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg7.occUp = FREE & seg7.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg7.occUp = FREE & seg7.mode != AVAILABLE
+		& seg6.occUp = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg7.occUp = FREE & seg7.mode != AVAILABLE
+		& seg6.occUp = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg7.occUp = FREE & seg7.mode != AVAILABLE
+		& seg6.occUp = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present and signal is GO
+		seg7.occUp = HEADOCC & signal4.ACT = GO : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train collects here if head present and signal is STOP
+		seg7.occUp = HEADOCC & signal4.ACT = STOP : COMPLETETRAINOCC;
+
+		-- train stays here if train is present and signal is STOP
+		seg7.occUp = COMPLETETRAINOCC & signal4.ACT = STOP : COMPLETETRAINOCC;
+
+		-- train moves on with head if train is present and signal is GO
+		seg7.occUp = COMPLETETRAINOCC & signal4.ACT = GO : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg7.occUp = TAILOCC : FREE;
+
+		TRUE : seg7.occUp;
+	esac;
+
+	-- seg6
+	next(seg6.occDown) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg6.occDown = FREE & seg7.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg6.occDown = FREE & seg6.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg6.occDown = FREE & seg6.mode != AVAILABLE
+		& seg7.occDown = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg6.occDown = FREE & seg6.mode != AVAILABLE
+		& seg7.occDown = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg6.occDown = FREE & seg6.mode != AVAILABLE
+		& seg7.occDown = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg6.occDown = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg6.occDown = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg6.occDown = TAILOCC : FREE;
+
+		TRUE : seg6.occDown;
+	esac;
+
+	next(seg6.occUp) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg6.occUp = FREE & seg5.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg6.occUp = FREE & seg6.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg6.occUp = FREE & seg6.mode != AVAILABLE
+		& seg5.occUp = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg6.occUp = FREE & seg6.mode != AVAILABLE
+		& seg5.occUp = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg6.occUp = FREE & seg6.mode != AVAILABLE
+		& seg5.occUp = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg6.occUp = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg6.occUp = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg6.occUp = TAILOCC : FREE;
+
+		TRUE : seg6.occUp;
+	esac;
+
+	-- seg5
+	next(seg5.occDown) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg5.occDown = FREE & seg6.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg5.occDown = FREE & seg5.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg5.occDown = FREE & seg5.mode != AVAILABLE
+		& seg6.occDown = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg5.occDown = FREE & seg5.mode != AVAILABLE
+		& seg6.occDown = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg5.occDown = FREE & seg5.mode != AVAILABLE
+		& seg6.occDown = TAILOCC
+		: ERROROCC;
+
+		-- train collects here if head present and signal is STOP
+		seg5.occDown = HEADOCC & signal3.ACT = STOP : COMPLETETRAINOCC;
+
+		-- ERROROCC if train head present and signal is GO
+		seg5.occDown = HEADOCC & signal3.ACT = GO : ERROROCC;
+
+		-- train stays here and signal is STOP
+		seg5.occDown = COMPLETETRAINOCC & signal3.ACT = STOP : COMPLETETRAINOCC;
+
+		-- ERROROCC if train in COMPLETETRAINOCC and signal is GO
+		seg5.occDown = COMPLETETRAINOCC & signal3.ACT = GO : ERROROCC;
+
+		-- ERROROCC if train tail is present
+		seg5.occDown = TAILOCC : ERROROCC;
+
+		TRUE : seg5.occDown;
+	esac;
+
+	next(seg5.occUp) := case
+		-- stays FREE as no train can enter from out of bounds
+		seg5.occUp = FREE : FREE;
+
+		-- ERROROCC if head of a train is here, as the tail has no previous segment
+		seg5.occUp = HEADOCC : ERROROCC;
+
+		-- stays COMPLETETRAINOCC if the segment is not in USED mode
+		seg5.occUp = COMPLETETRAINOCC & seg5.mode != USED : COMPLETETRAINOCC;
+
+		-- train moves on with head if train is present
+		seg5.occUp = COMPLETETRAINOCC & seg5.mode = USED : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg5.occUp = TAILOCC : FREE;
+
+		TRUE : seg5.occUp;
+	esac;
+
+	-- seg27
+	next(seg27.occDown) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg27.occDown = FREE & point5.occSNR in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg27.occDown = FREE & seg27.mode = AVAILABLE : FREE;
+
+		-- train blocked at signal STOP regardless of predecessor state
+		seg27.occDown = FREE & seg27.mode != AVAILABLE
+		& point5.occSNR in {HEADOCC, COMPLETETRAINOCC} & signal14.ACT = STOP
+		: FREE;
+
+		-- non-deterministic head entry if previous segment has head and signal is GO
+		seg27.occDown = FREE & seg27.mode != AVAILABLE
+		& point5.occSNR = HEADOCC & signal14.ACT = GO
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train and signal is GO
+		seg27.occDown = FREE & seg27.mode != AVAILABLE
+		& point5.occSNR = COMPLETETRAINOCC & signal14.ACT = GO
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		-- and signal is GO
+		seg27.occDown = FREE & seg27.mode != AVAILABLE
+		& point5.occSNR = TAILOCC & signal14.ACT = GO
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg27.occDown = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg27.occDown = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg27.occDown = TAILOCC : FREE;
+
+		TRUE : seg27.occDown;
+	esac;
+
+	next(seg27.occUp) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg27.occUp = FREE & seg28.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg27.occUp = FREE & seg27.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg27.occUp = FREE & seg27.mode != AVAILABLE
+		& seg28.occUp = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg27.occUp = FREE & seg27.mode != AVAILABLE
+		& seg28.occUp = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg27.occUp = FREE & seg27.mode != AVAILABLE
+		& seg28.occUp = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present and signal is GO
+		seg27.occUp = HEADOCC & signal14.ACT = GO : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train collects here if head present and signal is STOP
+		seg27.occUp = HEADOCC & signal14.ACT = STOP : COMPLETETRAINOCC;
+
+		-- train stays here if train is present and signal is STOP
+		seg27.occUp = COMPLETETRAINOCC & signal14.ACT = STOP : COMPLETETRAINOCC;
+
+		-- train moves on with head if train is present and signal is GO
+		seg27.occUp = COMPLETETRAINOCC & signal14.ACT = GO : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg27.occUp = TAILOCC : FREE;
+
+		TRUE : seg27.occUp;
+	esac;
+
+	-- seg28
+	next(seg28.occDown) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg28.occDown = FREE & seg27.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg28.occDown = FREE & seg28.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg28.occDown = FREE & seg28.mode != AVAILABLE
+		& seg27.occDown = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg28.occDown = FREE & seg28.mode != AVAILABLE
+		& seg27.occDown = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg28.occDown = FREE & seg28.mode != AVAILABLE
+		& seg27.occDown = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg28.occDown = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg28.occDown = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg28.occDown = TAILOCC : FREE;
+
+		TRUE : seg28.occDown;
+	esac;
+
+	next(seg28.occUp) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg28.occUp = FREE & seg29.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg28.occUp = FREE & seg28.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg28.occUp = FREE & seg28.mode != AVAILABLE
+		& seg29.occUp = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg28.occUp = FREE & seg28.mode != AVAILABLE
+		& seg29.occUp = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg28.occUp = FREE & seg28.mode != AVAILABLE
+		& seg29.occUp = TAILOCC
+		: ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		seg28.occUp = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		seg28.occUp = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg28.occUp = TAILOCC : FREE;
+
+		TRUE : seg28.occUp;
+	esac;
+
+	-- seg29
+	next(seg29.occDown) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		seg29.occDown = FREE & seg28.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		seg29.occDown = FREE & seg29.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		seg29.occDown = FREE & seg29.mode != AVAILABLE
+		& seg28.occDown = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		seg29.occDown = FREE & seg29.mode != AVAILABLE
+		& seg28.occDown = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		seg29.occDown = FREE & seg29.mode != AVAILABLE
+		& seg28.occDown = TAILOCC
+		: ERROROCC;
+
+		-- train collects here if head present and signal is STOP
+		seg29.occDown = HEADOCC & signal15.ACT = STOP : COMPLETETRAINOCC;
+
+		-- ERROROCC if train head present and signal is GO
+		seg29.occDown = HEADOCC & signal15.ACT = GO : ERROROCC;
+
+		-- train stays here and signal is STOP
+		seg29.occDown = COMPLETETRAINOCC & signal15.ACT = STOP : COMPLETETRAINOCC;
+
+		-- ERROROCC if train in COMPLETETRAINOCC and signal is GO
+		seg29.occDown = COMPLETETRAINOCC & signal15.ACT = GO : ERROROCC;
+
+		-- ERROROCC if train tail is present
+		seg29.occDown = TAILOCC : ERROROCC;
+
+		TRUE : seg29.occDown;
+	esac;
+
+	next(seg29.occUp) := case
+		-- stays FREE as no train can enter from out of bounds
+		seg29.occUp = FREE : FREE;
+
+		-- ERROROCC if head of a train is here, as the tail has no previous segment
+		seg29.occUp = HEADOCC : ERROROCC;
+
+		-- stays COMPLETETRAINOCC if the segment is not in USED mode
+		seg29.occUp = COMPLETETRAINOCC & seg29.mode != USED : COMPLETETRAINOCC;
+
+		-- train moves on with head if train is present
+		seg29.occUp = COMPLETETRAINOCC & seg29.mode = USED : TAILOCC;
+
+		-- train tail leaves if tail is present
+		seg29.occUp = TAILOCC : FREE;
+
+		TRUE : seg29.occUp;
+	esac;
+
+	-- POINTS OCCUPANCY NEXT --
+	-- point2
+	next(point2.occSNR) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		point2.occSNR = FREE & seg7.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		point2.occSNR = FREE & point2.mode = AVAILABLE : FREE;
+
+		-- train blocked at signal STOP regardless of predecessor state
+		point2.occSNR = FREE & point2.mode != AVAILABLE & point2.ACT != INTERMEDIATE
+		& seg7.occUp in {HEADOCC, COMPLETETRAINOCC} & signal4.ACT = STOP
+		: FREE;
+
+		-- non-deterministic head entry if previous segment has head and signal is GO
+		point2.occSNR = FREE & point2.mode != AVAILABLE & point2.ACT != INTERMEDIATE
+		& seg7.occUp = HEADOCC & signal4.ACT = GO
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train and signal is GO
+		point2.occSNR = FREE & point2.mode != AVAILABLE & point2.ACT != INTERMEDIATE
+		& seg7.occUp = COMPLETETRAINOCC & signal4.ACT = GO
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		-- and signal is GO
+		point2.occSNR = FREE & point2.mode != AVAILABLE & point2.ACT != INTERMEDIATE
+		& seg7.occUp = TAILOCC & signal4.ACT = GO
+		: ERROROCC;
+
+		-- ERROROCC if train present and aspect is INTERMEDIATE
+		point2.occSNR != FREE & point2.ACT = INTERMEDIATE : ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		point2.occSNR = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		point2.occSNR = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		point2.occSNR = TAILOCC : FREE;
+
+		TRUE : point2.occSNR;
+	esac;
+
+	next(point2.occNS) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		point2.occNS = FREE & seg9.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		point2.occNS = FREE & point2.mode = AVAILABLE : FREE;
+
+		-- train blocked at signal STOP regardless of predecessor state
+		point2.occNS = FREE & point2.mode != AVAILABLE & point2.ACT = NORMAL
+		& seg9.occDown in {HEADOCC, COMPLETETRAINOCC} & signal5.ACT = STOP
+		: FREE;
+
+		-- non-deterministic head entry if previous segment has head and signal is GO
+		point2.occNS = FREE & point2.mode != AVAILABLE & point2.ACT = NORMAL
+		& seg9.occDown = HEADOCC & signal5.ACT = GO
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train and signal is GO
+		point2.occNS = FREE & point2.mode != AVAILABLE & point2.ACT = NORMAL
+		& seg9.occDown = COMPLETETRAINOCC & signal5.ACT = GO
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		-- and signal is GO
+		point2.occNS = FREE & point2.mode != AVAILABLE & point2.ACT = NORMAL
+		& seg9.occDown = TAILOCC & signal5.ACT = GO
+		: ERROROCC;
+
+		-- ERROROCC if train present and aspect is INTERMEDIATE
+		point2.occNS != FREE & point2.ACT = INTERMEDIATE : ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		point2.occNS = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		point2.occNS = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		point2.occNS = TAILOCC : FREE;
+
+		TRUE : point2.occNS;
+	esac;
+
+	next(point2.occRS) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		point2.occRS = FREE & point5.occRS in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		point2.occRS = FREE & point2.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		point2.occRS = FREE & point2.mode != AVAILABLE & point2.ACT = REVERSE
+		& point5.occRS = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		point2.occRS = FREE & point2.mode != AVAILABLE & point2.ACT = REVERSE
+		& point5.occRS = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		point2.occRS = FREE & point2.mode != AVAILABLE & point2.ACT = REVERSE
+		& point5.occRS = TAILOCC
+		: ERROROCC;
+
+		-- ERROROCC if train present and aspect is INTERMEDIATE
+		point2.occRS != FREE & point2.ACT = INTERMEDIATE : ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		point2.occRS = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		point2.occRS = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		point2.occRS = TAILOCC : FREE;
+
+		TRUE : point2.occRS;
+	esac;
+
+	-- point5
+	next(point5.occSNR) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		point5.occSNR = FREE & seg18.occDown in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		point5.occSNR = FREE & point5.mode = AVAILABLE : FREE;
+
+		-- train blocked at signal STOP regardless of predecessor state
+		point5.occSNR = FREE & point5.mode != AVAILABLE & point5.ACT != INTERMEDIATE
+		& seg18.occDown in {HEADOCC, COMPLETETRAINOCC} & signal9.ACT = STOP
+		: FREE;
+
+		-- non-deterministic head entry if previous segment has head and signal is GO
+		point5.occSNR = FREE & point5.mode != AVAILABLE & point5.ACT != INTERMEDIATE
+		& seg18.occDown = HEADOCC & signal9.ACT = GO
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train and signal is GO
+		point5.occSNR = FREE & point5.mode != AVAILABLE & point5.ACT != INTERMEDIATE
+		& seg18.occDown = COMPLETETRAINOCC & signal9.ACT = GO
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		-- and signal is GO
+		point5.occSNR = FREE & point5.mode != AVAILABLE & point5.ACT != INTERMEDIATE
+		& seg18.occDown = TAILOCC & signal9.ACT = GO
+		: ERROROCC;
+
+		-- ERROROCC if train present and aspect is INTERMEDIATE
+		point5.occSNR != FREE & point5.ACT = INTERMEDIATE : ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		point5.occSNR = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		point5.occSNR = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		point5.occSNR = TAILOCC : FREE;
+
+		TRUE : point5.occSNR;
+	esac;
+
+	next(point5.occNS) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		point5.occNS = FREE & seg27.occUp in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		point5.occNS = FREE & point5.mode = AVAILABLE : FREE;
+
+		-- train blocked at signal STOP regardless of predecessor state
+		point5.occNS = FREE & point5.mode != AVAILABLE & point5.ACT = NORMAL
+		& seg27.occUp in {HEADOCC, COMPLETETRAINOCC} & signal14.ACT = STOP
+		: FREE;
+
+		-- non-deterministic head entry if previous segment has head and signal is GO
+		point5.occNS = FREE & point5.mode != AVAILABLE & point5.ACT = NORMAL
+		& seg27.occUp = HEADOCC & signal14.ACT = GO
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train and signal is GO
+		point5.occNS = FREE & point5.mode != AVAILABLE & point5.ACT = NORMAL
+		& seg27.occUp = COMPLETETRAINOCC & signal14.ACT = GO
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		-- and signal is GO
+		point5.occNS = FREE & point5.mode != AVAILABLE & point5.ACT = NORMAL
+		& seg27.occUp = TAILOCC & signal14.ACT = GO
+		: ERROROCC;
+
+		-- ERROROCC if train present and aspect is INTERMEDIATE
+		point5.occNS != FREE & point5.ACT = INTERMEDIATE : ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		point5.occNS = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		point5.occNS = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		point5.occNS = TAILOCC : FREE;
+
+		TRUE : point5.occNS;
+	esac;
+
+	next(point5.occRS) := case
+		-- stays FREE if previous segment doesnt have a train or has ERROR
+		point5.occRS = FREE & point2.occRS in {FREE, ERROROCC} : FREE;
+
+		-- stays FREE if not allocated to a route
+		point5.occRS = FREE & point5.mode = AVAILABLE : FREE;
+
+		-- train head may enter if previous segment has head of a train
+		point5.occRS = FREE & point5.mode != AVAILABLE & point5.ACT = REVERSE
+		& point2.occRS = HEADOCC
+		: {HEADOCC, FREE};
+
+		-- train head enters if previous segment has complete train
+		point5.occRS = FREE & point5.mode != AVAILABLE & point5.ACT = REVERSE
+		& point2.occRS = COMPLETETRAINOCC
+		: HEADOCC;
+
+		-- ERROROCC if previous segment has tail but this segment has no head
+		point5.occRS = FREE & point5.mode != AVAILABLE & point5.ACT = REVERSE
+		& point2.occRS = TAILOCC
+		: ERROROCC;
+
+		-- ERROROCC if train present and aspect is INTERMEDIATE
+		point5.occRS != FREE & point5.ACT = INTERMEDIATE : ERROROCC;
+
+		-- train head leaves or train collects here if head present
+		point5.occRS = HEADOCC : {COMPLETETRAINOCC, TAILOCC};
+
+		-- train moves on with head if train is present
+		point5.occRS = COMPLETETRAINOCC : TAILOCC;
+
+		-- train tail leaves if tail is present
+		point5.occRS = TAILOCC : FREE;
+
+		TRUE : point5.occRS;
+	esac;
+
+
+-- Train Movement --
+INVAR
+	(seg18.occUp = HEADOCC -> (seg19.occUp != HEADOCC))
+	& (seg18.occUp = COMPLETETRAINOCC -> (seg19.occUp != HEADOCC))
+	& (seg18.occUp = TAILOCC -> (seg19.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg18.occDown = HEADOCC -> (seg19.occDown in {TAILOCC, ERROROCC} & point5.occSNR != HEADOCC))
+	& (seg18.occDown = COMPLETETRAINOCC -> (seg19.occDown != TAILOCC & point5.occSNR != HEADOCC))
+	& (seg18.occDown = TAILOCC -> (seg19.occDown != TAILOCC & point5.occSNR in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg19.occUp = HEADOCC -> (seg18.occUp in {TAILOCC, ERROROCC} & seg20.occUp != HEADOCC))
+	& (seg19.occUp = COMPLETETRAINOCC -> (seg18.occUp != TAILOCC & seg20.occUp != HEADOCC))
+	& (seg19.occUp = TAILOCC -> (seg18.occUp != TAILOCC & seg20.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg19.occDown = HEADOCC -> (seg20.occDown in {TAILOCC, ERROROCC} & seg18.occDown != HEADOCC))
+	& (seg19.occDown = COMPLETETRAINOCC -> (seg20.occDown != TAILOCC & seg18.occDown != HEADOCC))
+	& (seg19.occDown = TAILOCC -> (seg20.occDown != TAILOCC & seg18.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg20.occUp = HEADOCC -> (seg19.occUp in {TAILOCC, ERROROCC}))
+	& (seg20.occUp = COMPLETETRAINOCC -> (seg19.occUp != TAILOCC))
+	& (seg20.occUp = TAILOCC -> (seg19.occUp != TAILOCC))
+	& (seg20.occDown = HEADOCC -> (seg19.occDown != HEADOCC))
+	& (seg20.occDown = COMPLETETRAINOCC -> (seg19.occDown != HEADOCC))
+	& (seg20.occDown = TAILOCC -> (seg19.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg9.occUp = HEADOCC -> (point2.occNS in {TAILOCC, ERROROCC} & seg10.occUp != HEADOCC))
+	& (seg9.occUp = COMPLETETRAINOCC -> (point2.occNS != TAILOCC & seg10.occUp != HEADOCC))
+	& (seg9.occUp = TAILOCC -> (point2.occNS != TAILOCC & seg10.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg9.occDown = HEADOCC -> (seg10.occDown in {TAILOCC, ERROROCC} & point2.occSNR != HEADOCC))
+	& (seg9.occDown = COMPLETETRAINOCC -> (seg10.occDown != TAILOCC & point2.occSNR != HEADOCC))
+	& (seg9.occDown = TAILOCC -> (seg10.occDown != TAILOCC & point2.occSNR in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg10.occUp = HEADOCC -> (seg9.occUp in {TAILOCC, ERROROCC} & seg11.occUp != HEADOCC))
+	& (seg10.occUp = COMPLETETRAINOCC -> (seg9.occUp != TAILOCC & seg11.occUp != HEADOCC))
+	& (seg10.occUp = TAILOCC -> (seg9.occUp != TAILOCC & seg11.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg10.occDown = HEADOCC -> (seg11.occDown in {TAILOCC, ERROROCC} & seg9.occDown != HEADOCC))
+	& (seg10.occDown = COMPLETETRAINOCC -> (seg11.occDown != TAILOCC & seg9.occDown != HEADOCC))
+	& (seg10.occDown = TAILOCC -> (seg11.occDown != TAILOCC & seg9.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg11.occUp = HEADOCC -> (seg10.occUp in {TAILOCC, ERROROCC}))
+	& (seg11.occUp = COMPLETETRAINOCC -> (seg10.occUp != TAILOCC))
+	& (seg11.occUp = TAILOCC -> (seg10.occUp != TAILOCC))
+	& (seg11.occDown = HEADOCC -> (seg10.occDown != HEADOCC))
+	& (seg11.occDown = COMPLETETRAINOCC -> (seg10.occDown != HEADOCC))
+	& (seg11.occDown = TAILOCC -> (seg10.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg7.occUp = HEADOCC -> (seg6.occUp in {TAILOCC, ERROROCC}))
+	& (seg7.occUp = COMPLETETRAINOCC -> (seg6.occUp != TAILOCC))
+	& (seg7.occUp = TAILOCC -> (seg6.occUp != TAILOCC))
+	& (seg7.occDown = HEADOCC -> (point2.occSNR in {TAILOCC, ERROROCC} & seg6.occDown != HEADOCC))
+	& (seg7.occDown = COMPLETETRAINOCC -> (point2.occSNR != TAILOCC & seg6.occDown != HEADOCC))
+	& (seg7.occDown = TAILOCC -> (point2.occSNR != TAILOCC & seg6.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg6.occUp = HEADOCC -> (seg5.occUp in {TAILOCC, ERROROCC} & seg7.occUp != HEADOCC))
+	& (seg6.occUp = COMPLETETRAINOCC -> (seg5.occUp != TAILOCC & seg7.occUp != HEADOCC))
+	& (seg6.occUp = TAILOCC -> (seg5.occUp != TAILOCC & seg7.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg6.occDown = HEADOCC -> (seg7.occDown in {TAILOCC, ERROROCC} & seg5.occDown != HEADOCC))
+	& (seg6.occDown = COMPLETETRAINOCC -> (seg7.occDown != TAILOCC & seg5.occDown != HEADOCC))
+	& (seg6.occDown = TAILOCC -> (seg7.occDown != TAILOCC & seg5.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg5.occUp = HEADOCC -> (seg6.occUp != HEADOCC))
+	& (seg5.occUp = COMPLETETRAINOCC -> (seg6.occUp != HEADOCC))
+	& (seg5.occUp = TAILOCC -> (seg6.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg5.occDown = HEADOCC -> (seg6.occDown in {TAILOCC, ERROROCC}))
+	& (seg5.occDown = COMPLETETRAINOCC -> (seg6.occDown != TAILOCC))
+	& (seg5.occDown = TAILOCC -> (seg6.occDown != TAILOCC))
+	& (seg27.occUp = HEADOCC -> (seg28.occUp in {TAILOCC, ERROROCC} & point5.occNS != HEADOCC))
+	& (seg27.occUp = COMPLETETRAINOCC -> (seg28.occUp != TAILOCC & point5.occNS != HEADOCC))
+	& (seg27.occUp = TAILOCC -> (seg28.occUp != TAILOCC & point5.occNS in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg27.occDown = HEADOCC -> (point5.occSNR in {TAILOCC, ERROROCC} & seg28.occDown != HEADOCC))
+	& (seg27.occDown = COMPLETETRAINOCC -> (point5.occSNR != TAILOCC & seg28.occDown != HEADOCC))
+	& (seg27.occDown = TAILOCC -> (point5.occSNR != TAILOCC & seg28.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg28.occUp = HEADOCC -> (seg29.occUp in {TAILOCC, ERROROCC} & seg27.occUp != HEADOCC))
+	& (seg28.occUp = COMPLETETRAINOCC -> (seg29.occUp != TAILOCC & seg27.occUp != HEADOCC))
+	& (seg28.occUp = TAILOCC -> (seg29.occUp != TAILOCC & seg27.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg28.occDown = HEADOCC -> (seg27.occDown in {TAILOCC, ERROROCC} & seg29.occDown != HEADOCC))
+	& (seg28.occDown = COMPLETETRAINOCC -> (seg27.occDown != TAILOCC & seg29.occDown != HEADOCC))
+	& (seg28.occDown = TAILOCC -> (seg27.occDown != TAILOCC & seg29.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg29.occUp = HEADOCC -> (seg28.occUp != HEADOCC))
+	& (seg29.occUp = COMPLETETRAINOCC -> (seg28.occUp != HEADOCC))
+	& (seg29.occUp = TAILOCC -> (seg28.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (seg29.occDown = HEADOCC -> (seg28.occDown in {TAILOCC, ERROROCC}))
+	& (seg29.occDown = COMPLETETRAINOCC -> (seg28.occDown != TAILOCC))
+	& (seg29.occDown = TAILOCC -> (seg28.occDown != TAILOCC))
+	& (point2.occSNR = HEADOCC -> (seg7.occDown in {TAILOCC, ERROROCC} & seg9.occDown != HEADOCC & point5.occSNR != HEADOCC))
+	& (point2.occSNR = COMPLETETRAINOCC -> (seg7.occDown != TAILOCC & seg9.occDown != HEADOCC & point5.occSNR != HEADOCC))
+	& (point2.occSNR = TAILOCC -> (seg7.occDown != TAILOCC & (seg9.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC} | point5.occSNR in {HEADOCC, COMPLETETRAINOCC, ERROROCC})))
+	& (point2.occNS = HEADOCC -> (seg9.occUp in {TAILOCC, ERROROCC} & seg7.occUp != HEADOCC))
+	& (point2.occNS = COMPLETETRAINOCC -> (seg9.occUp != TAILOCC & seg7.occUp != HEADOCC))
+	& (point2.occNS = TAILOCC -> (seg9.occUp != TAILOCC & seg7.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (point2.occRS = HEADOCC -> (point5.occRS in {TAILOCC, ERROROCC} & seg7.occUp != HEADOCC))
+	& (point2.occRS = COMPLETETRAINOCC -> (point5.occRS != TAILOCC & seg7.occUp != HEADOCC))
+	& (point2.occRS = TAILOCC -> (point5.occRS != TAILOCC & seg7.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (point5.occSNR = HEADOCC -> (seg18.occDown in {TAILOCC, ERROROCC} & seg27.occDown != HEADOCC & point2.occSNR != HEADOCC))
+	& (point5.occSNR = COMPLETETRAINOCC -> (seg18.occDown != TAILOCC & seg27.occDown != HEADOCC & point2.occSNR != HEADOCC))
+	& (point5.occSNR = TAILOCC -> (seg18.occDown != TAILOCC & (seg27.occDown in {HEADOCC, COMPLETETRAINOCC, ERROROCC} | point2.occSNR in {HEADOCC, COMPLETETRAINOCC, ERROROCC})))
+	& (point5.occNS = HEADOCC -> (seg27.occUp in {TAILOCC, ERROROCC} & seg18.occUp != HEADOCC))
+	& (point5.occNS = COMPLETETRAINOCC -> (seg27.occUp != TAILOCC & seg18.occUp != HEADOCC))
+	& (point5.occNS = TAILOCC -> (seg27.occUp != TAILOCC & seg18.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+	& (point5.occRS = HEADOCC -> (point2.occRS in {TAILOCC, ERROROCC} & seg18.occUp != HEADOCC))
+	& (point5.occRS = COMPLETETRAINOCC -> (point2.occRS != TAILOCC & seg18.occUp != HEADOCC))
+	& (point5.occRS = TAILOCC -> (point2.occRS != TAILOCC & seg18.occUp in {HEADOCC, COMPLETETRAINOCC, ERROROCC}))
+
+-- Train Occupancy Error --
+INVARSPEC
+	NAME NoOccUpErrors := !(
+		seg18.occUp = ERROROCC
+		| seg19.occUp = ERROROCC
+		| seg20.occUp = ERROROCC
+		| seg9.occUp = ERROROCC
+		| seg10.occUp = ERROROCC
+		| seg11.occUp = ERROROCC
+		| seg7.occUp = ERROROCC
+		| seg6.occUp = ERROROCC
+		| seg5.occUp = ERROROCC
+		| seg27.occUp = ERROROCC
+		| seg28.occUp = ERROROCC
+		| seg29.occUp = ERROROCC
+	);
+
+INVARSPEC
+	NAME NoOccDownErrors := !(
+		seg18.occDown = ERROROCC
+		| seg19.occDown = ERROROCC
+		| seg20.occDown = ERROROCC
+		| seg9.occDown = ERROROCC
+		| seg10.occDown = ERROROCC
+		| seg11.occDown = ERROROCC
+		| seg7.occDown = ERROROCC
+		| seg6.occDown = ERROROCC
+		| seg5.occDown = ERROROCC
+		| seg27.occDown = ERROROCC
+		| seg28.occDown = ERROROCC
+		| seg29.occDown = ERROROCC
+	);
+
+INVARSPEC
+	NAME NoOccPointErrors := !(
+		point2.occSNR = ERROROCC
+		| point2.occRS = ERROROCC
+		| point2.occNS = ERROROCC
+		| point5.occSNR = ERROROCC
+		| point5.occRS = ERROROCC
+		| point5.occNS = ERROROCC
+	);
+
+
+-- Safety Invariants --
+INVARSPEC
+	NAME NoHeadToHeadSegmentCollisions := (
+		(seg18.occDown != FREE -> seg18.occUp = FREE) & (seg18.occUp != FREE -> seg18.occDown = FREE)
+		& (seg19.occDown != FREE -> seg19.occUp = FREE) & (seg19.occUp != FREE -> seg19.occDown = FREE)
+		& (seg20.occDown != FREE -> seg20.occUp = FREE) & (seg20.occUp != FREE -> seg20.occDown = FREE)
+		& (seg9.occDown != FREE -> seg9.occUp = FREE) & (seg9.occUp != FREE -> seg9.occDown = FREE)
+		& (seg10.occDown != FREE -> seg10.occUp = FREE) & (seg10.occUp != FREE -> seg10.occDown = FREE)
+		& (seg11.occDown != FREE -> seg11.occUp = FREE) & (seg11.occUp != FREE -> seg11.occDown = FREE)
+		& (seg7.occDown != FREE -> seg7.occUp = FREE) & (seg7.occUp != FREE -> seg7.occDown = FREE)
+		& (seg6.occDown != FREE -> seg6.occUp = FREE) & (seg6.occUp != FREE -> seg6.occDown = FREE)
+		& (seg5.occDown != FREE -> seg5.occUp = FREE) & (seg5.occUp != FREE -> seg5.occDown = FREE)
+		& (seg27.occDown != FREE -> seg27.occUp = FREE) & (seg27.occUp != FREE -> seg27.occDown = FREE)
+		& (seg28.occDown != FREE -> seg28.occUp = FREE) & (seg28.occUp != FREE -> seg28.occDown = FREE)
+		& (seg29.occDown != FREE -> seg29.occUp = FREE) & (seg29.occUp != FREE -> seg29.occDown = FREE)
+	);
+
+INVARSPEC
+	NAME NoHeadToHeadPointCollisions := (
+		(point2.occSNR != FREE -> (point2.occNS = FREE & point2.occRS = FREE))
+        & (point2.occNS != FREE -> (point2.occSNR = FREE & point2.occRS = FREE))
+        & (point2.occRS != FREE -> (point2.occSNR = FREE & point2.occNS = FREE))
+		& (point5.occSNR != FREE -> (point5.occNS = FREE & point5.occRS = FREE))
+        & (point5.occNS != FREE -> (point5.occSNR = FREE & point5.occRS = FREE))
+        & (point5.occRS != FREE -> (point5.occSNR = FREE & point5.occNS = FREE))
+	);
+
+INVARSPEC
+	NAME NoHeadToTailCollisionsDown := (
+		(seg18.occDown in {TAILOCC, COMPLETETRAINOCC}) -> !(seg19.occDown in {HEADOCC, COMPLETETRAINOCC})
+		& (seg19.occDown in {TAILOCC, COMPLETETRAINOCC}) -> !(seg20.occDown in {HEADOCC, COMPLETETRAINOCC})
+		& (seg9.occDown in {TAILOCC, COMPLETETRAINOCC}) -> !(seg10.occDown in {HEADOCC, COMPLETETRAINOCC})
+		& (seg10.occDown in {TAILOCC, COMPLETETRAINOCC}) -> !(seg11.occDown in {HEADOCC, COMPLETETRAINOCC})
+		& (seg7.occDown in {TAILOCC, COMPLETETRAINOCC}) -> (
+			!(point2.occSNR in {COMPLETETRAINOCC, HEADOCC})
+			| point2.ACT = INTERMEDIATE
+		)
+		& (seg6.occDown in {TAILOCC, COMPLETETRAINOCC}) -> !(seg7.occDown in {HEADOCC, COMPLETETRAINOCC})
+		& (seg5.occDown in {TAILOCC, COMPLETETRAINOCC}) -> !(seg6.occDown in {HEADOCC, COMPLETETRAINOCC})
+		& (seg27.occDown in {TAILOCC, COMPLETETRAINOCC}) -> (
+			!(point5.occNS in {COMPLETETRAINOCC, HEADOCC})
+			| point5.ACT != NORMAL
+		)
+		& (seg28.occDown in {TAILOCC, COMPLETETRAINOCC}) -> !(seg27.occDown in {HEADOCC, COMPLETETRAINOCC})
+		& (seg29.occDown in {TAILOCC, COMPLETETRAINOCC}) -> !(seg28.occDown in {HEADOCC, COMPLETETRAINOCC})
+	);
+INVARSPEC
+	NAME NoHeadToTailCollisionsUp := (
+		(seg18.occUp in {TAILOCC, COMPLETETRAINOCC}) -> (
+			!(point5.occSNR in {COMPLETETRAINOCC, HEADOCC})
+			| point5.ACT = INTERMEDIATE
+		)
+		& (seg19.occUp in {TAILOCC, COMPLETETRAINOCC}) -> !(seg18.occUp in {HEADOCC, COMPLETETRAINOCC})
+		& (seg20.occUp in {TAILOCC, COMPLETETRAINOCC}) -> !(seg19.occUp in {HEADOCC, COMPLETETRAINOCC})
+		& (seg9.occUp in {TAILOCC, COMPLETETRAINOCC}) -> (
+			!(point2.occNS in {COMPLETETRAINOCC, HEADOCC})
+			| point2.ACT != NORMAL
+		)
+		& (seg10.occUp in {TAILOCC, COMPLETETRAINOCC}) -> !(seg9.occUp in {HEADOCC, COMPLETETRAINOCC})
+		& (seg11.occUp in {TAILOCC, COMPLETETRAINOCC}) -> !(seg10.occUp in {HEADOCC, COMPLETETRAINOCC})
+		& (seg7.occUp in {TAILOCC, COMPLETETRAINOCC}) -> !(seg6.occUp in {HEADOCC, COMPLETETRAINOCC})
+		& (seg6.occUp in {TAILOCC, COMPLETETRAINOCC}) -> !(seg5.occUp in {HEADOCC, COMPLETETRAINOCC})
+		& (seg27.occUp in {TAILOCC, COMPLETETRAINOCC}) -> !(seg28.occUp in {HEADOCC, COMPLETETRAINOCC})
+		& (seg28.occUp in {TAILOCC, COMPLETETRAINOCC}) -> !(seg29.occUp in {HEADOCC, COMPLETETRAINOCC})
+	);
+
+INVARSPEC
+	NAME NoPointDerailments := (
+		(
+			(point2.occNS != FREE -> point2.ACT = NORMAL)
+            & (point2.occRS != FREE -> point2.ACT = REVERSE)
+            & (point2.occSNR != FREE -> point2.ACT != INTERMEDIATE)
+		)
+		& (
+			(point5.occNS != FREE -> point5.ACT = NORMAL)
+            & (point5.occRS != FREE -> point5.ACT = REVERSE)
+            & (point5.occSNR != FREE -> point5.ACT != INTERMEDIATE)
+		)
+	);
+
+INVARSPEC
+	NAME NoPointHeadToTailCollisions := (
+		(point2.occSNR in {TAILOCC, COMPLETETRAINOCC}) -> !(seg7.occDown in {HEADOCC, COMPLETETRAINOCC})
+		& (point2.occNS in {TAILOCC, COMPLETETRAINOCC}) -> !(seg9.occUp in {HEADOCC, COMPLETETRAINOCC})
+		& (point2.occRS in {TAILOCC, COMPLETETRAINOCC}) -> !(point5.occRS in {HEADOCC, COMPLETETRAINOCC})
+		& (point5.occSNR in {TAILOCC, COMPLETETRAINOCC}) -> !(seg18.occDown in {HEADOCC, COMPLETETRAINOCC})
+		& (point5.occNS in {TAILOCC, COMPLETETRAINOCC}) -> !(seg27.occUp in {HEADOCC, COMPLETETRAINOCC})
+		& (point5.occRS in {TAILOCC, COMPLETETRAINOCC}) -> !(point2.occRS in {HEADOCC, COMPLETETRAINOCC})
+	);
+
+INVARSPEC
+	NAME NoSegmentLockModeTransitionError := (
+		(seg18.mode = EXLOCKED -> (r0.mode in {ALLOCATING, LOCKED, OCCUPIED} | r5.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg18.mode = USED -> (r0.mode = OCCUPIED | r5.mode = OCCUPIED))
+		& (seg19.mode = EXLOCKED -> (r0.mode in {ALLOCATING, LOCKED, OCCUPIED} | r5.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg19.mode = USED -> (r0.mode = OCCUPIED | r5.mode = OCCUPIED))
+		& (seg20.mode = EXLOCKED -> (r0.mode in {ALLOCATING, LOCKED, OCCUPIED} | r5.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg9.mode = EXLOCKED -> (r1.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg9.mode = USED -> (r1.mode = OCCUPIED))
+		& (seg10.mode = EXLOCKED -> (r1.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg10.mode = USED -> (r1.mode = OCCUPIED))
+		& (seg11.mode = EXLOCKED -> (r1.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg7.mode = EXLOCKED -> (r2.mode in {ALLOCATING, LOCKED, OCCUPIED} | r3.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg7.mode = USED -> (r2.mode = OCCUPIED | r3.mode = OCCUPIED))
+		& (seg6.mode = EXLOCKED -> (r2.mode in {ALLOCATING, LOCKED, OCCUPIED} | r3.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg6.mode = USED -> (r2.mode = OCCUPIED | r3.mode = OCCUPIED))
+		& (seg5.mode = EXLOCKED -> (r2.mode in {ALLOCATING, LOCKED, OCCUPIED} | r3.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg27.mode = EXLOCKED -> (r4.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg27.mode = USED -> (r4.mode = OCCUPIED))
+		& (seg28.mode = EXLOCKED -> (r4.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (seg28.mode = USED -> (r4.mode = OCCUPIED))
+		& (seg29.mode = EXLOCKED -> (r4.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+	);
+
+INVARSPEC
+	NAME NoPointLockModeTransitionError := (
+		(point2.mode = EXLOCKED -> (r0.mode in {ALLOCATING, LOCKED, OCCUPIED} | r1.mode in {ALLOCATING, LOCKED, OCCUPIED} | r2.mode in {ALLOCATING, LOCKED, OCCUPIED} | r3.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (point2.mode = USED -> (r0.mode = OCCUPIED | r1.mode = OCCUPIED | r2.mode = OCCUPIED | r3.mode = OCCUPIED))
+		& (point5.mode = EXLOCKED -> (r0.mode in {ALLOCATING, LOCKED, OCCUPIED} | r3.mode in {ALLOCATING, LOCKED, OCCUPIED} | r4.mode in {ALLOCATING, LOCKED, OCCUPIED} | r5.mode in {ALLOCATING, LOCKED, OCCUPIED}))
+		& (point5.mode = USED -> (r0.mode = OCCUPIED | r3.mode = OCCUPIED | r4.mode = OCCUPIED | r5.mode = OCCUPIED))
+	);
+
+-- LTL Properties --
+LTLSPEC
+	NAME r0IsReleasedEventually :=
+		G(r0.mode = OCCUPIED -> F(r0.mode = FREE));
+
+LTLSPEC
+	NAME r0TrainReachesSeg20UpEventuallyForever :=
+		F(r0.mode = OCCUPIED) -> F(G(seg20.occUp = COMPLETETRAINOCC));
+
+LTLSPEC
+	NAME r0ElementReleaseWavePoint2ToPoint5 :=
+		G((point5.mode = USED & point2.mode = AVAILABLE) -> F(point5.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r0ElementReleaseWavePoint5ToSeg18 :=
+		G((seg18.mode = USED & point5.mode = AVAILABLE) -> F(seg18.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r0ElementReleaseWaveSeg18ToSeg19 :=
+		G((seg19.mode = USED & seg18.mode = AVAILABLE) -> F(seg19.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r1IsReleasedEventually :=
+		G(r1.mode = OCCUPIED -> F(r1.mode = FREE));
+
+LTLSPEC
+	NAME r1TrainReachesSeg11UpEventuallyForever :=
+		F(r1.mode = OCCUPIED) -> F(G(seg11.occUp = COMPLETETRAINOCC));
+
+LTLSPEC
+	NAME r1ElementReleaseWavePoint2ToSeg9 :=
+		G((seg9.mode = USED & point2.mode = AVAILABLE) -> F(seg9.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r1ElementReleaseWaveSeg9ToSeg10 :=
+		G((seg10.mode = USED & seg9.mode = AVAILABLE) -> F(seg10.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r2IsReleasedEventually :=
+		G(r2.mode = OCCUPIED -> F(r2.mode = FREE));
+
+LTLSPEC
+	NAME r2TrainReachesSeg5DownEventuallyForever :=
+		F(r2.mode = OCCUPIED) -> F(G(seg5.occDown = COMPLETETRAINOCC));
+
+LTLSPEC
+	NAME r2ElementReleaseWavePoint2ToSeg7 :=
+		G((seg7.mode = USED & point2.mode = AVAILABLE) -> F(seg7.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r2ElementReleaseWaveSeg7ToSeg6 :=
+		G((seg6.mode = USED & seg7.mode = AVAILABLE) -> F(seg6.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r3IsReleasedEventually :=
+		G(r3.mode = OCCUPIED -> F(r3.mode = FREE));
+
+LTLSPEC
+	NAME r3TrainReachesSeg5DownEventuallyForever :=
+		F(r3.mode = OCCUPIED) -> F(G(seg5.occDown = COMPLETETRAINOCC));
+
+LTLSPEC
+	NAME r3ElementReleaseWavePoint5ToPoint2 :=
+		G((point2.mode = USED & point5.mode = AVAILABLE) -> F(point2.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r3ElementReleaseWavePoint2ToSeg7 :=
+		G((seg7.mode = USED & point2.mode = AVAILABLE) -> F(seg7.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r3ElementReleaseWaveSeg7ToSeg6 :=
+		G((seg6.mode = USED & seg7.mode = AVAILABLE) -> F(seg6.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r4IsReleasedEventually :=
+		G(r4.mode = OCCUPIED -> F(r4.mode = FREE));
+
+LTLSPEC
+	NAME r4TrainReachesSeg29DownEventuallyForever :=
+		F(r4.mode = OCCUPIED) -> F(G(seg29.occDown = COMPLETETRAINOCC));
+
+LTLSPEC
+	NAME r4ElementReleaseWavePoint5ToSeg27 :=
+		G((seg27.mode = USED & point5.mode = AVAILABLE) -> F(seg27.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r4ElementReleaseWaveSeg27ToSeg28 :=
+		G((seg28.mode = USED & seg27.mode = AVAILABLE) -> F(seg28.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r5IsReleasedEventually :=
+		G(r5.mode = OCCUPIED -> F(r5.mode = FREE));
+
+LTLSPEC
+	NAME r5TrainReachesSeg20UpEventuallyForever :=
+		F(r5.mode = OCCUPIED) -> F(G(seg20.occUp = COMPLETETRAINOCC));
+
+LTLSPEC
+	NAME r5ElementReleaseWavePoint5ToSeg18 :=
+		G((seg18.mode = USED & point5.mode = AVAILABLE) -> F(seg18.mode = AVAILABLE));
+
+LTLSPEC
+	NAME r5ElementReleaseWaveSeg18ToSeg19 :=
+		G((seg19.mode = USED & seg18.mode = AVAILABLE) -> F(seg19.mode = AVAILABLE));
+
+-- Route mutual exclusion --
+LTLSPEC
+	NAME r0AndR5MutuallyExclusive :=
+		G(!(r0.mode = OCCUPIED & r5.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r0AndR3MutuallyExclusive :=
+		G(!(r0.mode = OCCUPIED & r3.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r0AndR1MutuallyExclusive :=
+		G(!(r0.mode = OCCUPIED & r1.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r0AndR4MutuallyExclusive :=
+		G(!(r0.mode = OCCUPIED & r4.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r0AndR2MutuallyExclusive :=
+		G(!(r0.mode = OCCUPIED & r2.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r1AndR3MutuallyExclusive :=
+		G(!(r1.mode = OCCUPIED & r3.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r1AndR2MutuallyExclusive :=
+		G(!(r1.mode = OCCUPIED & r2.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r2AndR3MutuallyExclusive :=
+		G(!(r2.mode = OCCUPIED & r3.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r3AndR5MutuallyExclusive :=
+		G(!(r3.mode = OCCUPIED & r5.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r3AndR4MutuallyExclusive :=
+		G(!(r3.mode = OCCUPIED & r4.mode = OCCUPIED));
+
+LTLSPEC
+	NAME r4AndR5MutuallyExclusive :=
+		G(!(r4.mode = OCCUPIED & r5.mode = OCCUPIED));
+
+-- Sanity checks: add manually based on extras_config.yml initial train positions
+-- LTLSPEC NAME SanityCheckPos := F(G(<start_seg>.occ<Dir> = FREE & ...));
+-- LTLSPEC NAME SanityCheckNeg := !(F(G(<start_seg>.occ<Dir> = FREE & ...)));
+
+-------------------------------------------------------------------------------
+-- Interlocking System Moduel --
+-- Represents a route state transitions for the train movement
+-------------------------------------------------------------------------------
+MODULE InterlockingSystem 
+VAR
+	track : TrackSection;
+ASSIGN
+	next(track.r0.transition) := case
+		track.r0.transition = CAN_DISPATCH
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg18.occDown = FREE & track.seg18.occUp = FREE
+		& track.seg19.occDown = FREE & track.seg19.occUp = FREE
+		& track.seg20.occDown = FREE & track.seg20.occUp = FREE
+        & track.point2.mode = AVAILABLE
+		& track.point5.mode = AVAILABLE
+		& track.seg18.mode = AVAILABLE
+		& track.seg19.mode = AVAILABLE
+		& track.seg20.mode = AVAILABLE
+        & TRUE
+		: CAN_ALLOCATE;
+
+		track.r0.transition = CAN_ALLOCATE
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.signal4.ACT = STOP
+		& track.signal10.ACT = STOP
+        & track.point2.ACT = REVERSE
+		& track.point5.ACT = REVERSE
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg18.occDown = FREE & track.seg18.occUp = FREE
+		& track.seg19.occDown = FREE & track.seg19.occUp = FREE
+		& track.seg20.occDown = FREE & track.seg20.occUp = FREE
+        & track.point2.mode = EXLOCKED
+		& track.point5.mode = EXLOCKED
+		& track.seg18.mode = EXLOCKED
+		& track.seg19.mode = EXLOCKED
+		& track.seg20.mode = EXLOCKED
+        & TRUE
+		: CAN_LOCK;
+
+		track.r0.transition = CAN_LOCK
+		& track.r0.mode = LOCKED
+		& track.signal4.ACT = GO
+		& track.point2.occRS != FREE
+		: CAN_OCCUPY;
+
+		track.r0.transition = CAN_OCCUPY
+		& track.r0.mode = FREE
+		: CAN_DISPATCH;
+
+		TRUE : track.r0.transition;
+	esac;
+
+	next(track.r0.mode) := case
+		track.r0.mode = FREE
+		& track.r0.transition = CAN_DISPATCH
+		: MARKED;
+
+		track.r0.mode = MARKED
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg18.occDown = FREE & track.seg18.occUp = FREE
+		& track.seg19.occDown = FREE & track.seg19.occUp = FREE
+		& track.seg20.occDown = FREE & track.seg20.occUp = FREE
+        & track.point2.mode = AVAILABLE
+		& track.point5.mode = AVAILABLE
+		& track.seg18.mode = AVAILABLE
+		& track.seg19.mode = AVAILABLE
+		& track.seg20.mode = AVAILABLE
+        & TRUE
+		: ALLOCATING;
+
+		track.r0.mode = ALLOCATING
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.signal4.ACT = STOP
+		& track.signal10.ACT = STOP
+        & track.point2.ACT = REVERSE
+		& track.point5.ACT = REVERSE
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg18.occDown = FREE & track.seg18.occUp = FREE
+		& track.seg19.occDown = FREE & track.seg19.occUp = FREE
+		& track.seg20.occDown = FREE & track.seg20.occUp = FREE
+        & track.point2.mode = EXLOCKED
+		& track.point5.mode = EXLOCKED
+		& track.seg18.mode = EXLOCKED
+		& track.seg19.mode = EXLOCKED
+		& track.seg20.mode = EXLOCKED
+        & TRUE
+		: LOCKED;
+
+		track.r0.mode = LOCKED
+		& track.signal4.ACT = GO
+		& track.point2.occRS != FREE
+		: OCCUPIED;
+
+		track.r0.mode = OCCUPIED
+		& track.seg20.occUp in {HEADOCC, COMPLETETRAINOCC}
+		& track.seg20.mode = USED
+		& track.seg20.prev = RELEASED
+		: FREE;
+
+		TRUE : track.r0.mode;
+	esac;
+
+	next(track.r1.transition) := case
+		track.r1.transition = CAN_DISPATCH
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg9.occDown = FREE & track.seg9.occUp = FREE
+		& track.seg10.occDown = FREE & track.seg10.occUp = FREE
+		& track.seg11.occDown = FREE & track.seg11.occUp = FREE
+        & track.point2.mode = AVAILABLE
+		& track.seg9.mode = AVAILABLE
+		& track.seg10.mode = AVAILABLE
+		& track.seg11.mode = AVAILABLE
+        & TRUE
+		: CAN_ALLOCATE;
+
+		track.r1.transition = CAN_ALLOCATE
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.signal4.ACT = STOP
+		& track.signal6.ACT = STOP
+        & track.point2.ACT = NORMAL
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg9.occDown = FREE & track.seg9.occUp = FREE
+		& track.seg10.occDown = FREE & track.seg10.occUp = FREE
+		& track.seg11.occDown = FREE & track.seg11.occUp = FREE
+        & track.point2.mode = EXLOCKED
+		& track.seg9.mode = EXLOCKED
+		& track.seg10.mode = EXLOCKED
+		& track.seg11.mode = EXLOCKED
+        & TRUE
+		: CAN_LOCK;
+
+		track.r1.transition = CAN_LOCK
+		& track.r1.mode = LOCKED
+		& track.signal4.ACT = GO
+		& track.point2.occNS != FREE
+		: CAN_OCCUPY;
+
+		track.r1.transition = CAN_OCCUPY
+		& track.r1.mode = FREE
+		: CAN_DISPATCH;
+
+		TRUE : track.r1.transition;
+	esac;
+
+	next(track.r1.mode) := case
+		track.r1.mode = FREE
+		& track.r1.transition = CAN_DISPATCH
+		: MARKED;
+
+		track.r1.mode = MARKED
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg9.occDown = FREE & track.seg9.occUp = FREE
+		& track.seg10.occDown = FREE & track.seg10.occUp = FREE
+		& track.seg11.occDown = FREE & track.seg11.occUp = FREE
+        & track.point2.mode = AVAILABLE
+		& track.seg9.mode = AVAILABLE
+		& track.seg10.mode = AVAILABLE
+		& track.seg11.mode = AVAILABLE
+        & TRUE
+		: ALLOCATING;
+
+		track.r1.mode = ALLOCATING
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.signal4.ACT = STOP
+		& track.signal6.ACT = STOP
+        & track.point2.ACT = NORMAL
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg9.occDown = FREE & track.seg9.occUp = FREE
+		& track.seg10.occDown = FREE & track.seg10.occUp = FREE
+		& track.seg11.occDown = FREE & track.seg11.occUp = FREE
+        & track.point2.mode = EXLOCKED
+		& track.seg9.mode = EXLOCKED
+		& track.seg10.mode = EXLOCKED
+		& track.seg11.mode = EXLOCKED
+        & TRUE
+		: LOCKED;
+
+		track.r1.mode = LOCKED
+		& track.signal4.ACT = GO
+		& track.point2.occNS != FREE
+		: OCCUPIED;
+
+		track.r1.mode = OCCUPIED
+		& track.seg11.occUp in {HEADOCC, COMPLETETRAINOCC}
+		& track.seg11.mode = USED
+		& track.seg11.prev = RELEASED
+		: FREE;
+
+		TRUE : track.r1.mode;
+	esac;
+
+	next(track.r2.transition) := case
+		track.r2.transition = CAN_DISPATCH
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg7.occDown = FREE & track.seg7.occUp = FREE
+		& track.seg6.occDown = FREE & track.seg6.occUp = FREE
+		& track.seg5.occDown = FREE & track.seg5.occUp = FREE
+        & track.point2.mode = AVAILABLE
+		& track.seg7.mode = AVAILABLE
+		& track.seg6.mode = AVAILABLE
+		& track.seg5.mode = AVAILABLE
+        & TRUE
+		: CAN_ALLOCATE;
+
+		track.r2.transition = CAN_ALLOCATE
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+        & track.signal5.ACT = STOP
+		& track.signal3.ACT = STOP
+        & track.point2.ACT = NORMAL
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg7.occDown = FREE & track.seg7.occUp = FREE
+		& track.seg6.occDown = FREE & track.seg6.occUp = FREE
+		& track.seg5.occDown = FREE & track.seg5.occUp = FREE
+        & track.point2.mode = EXLOCKED
+		& track.seg7.mode = EXLOCKED
+		& track.seg6.mode = EXLOCKED
+		& track.seg5.mode = EXLOCKED
+        & TRUE
+		: CAN_LOCK;
+
+		track.r2.transition = CAN_LOCK
+		& track.r2.mode = LOCKED
+		& track.signal5.ACT = GO
+		& track.point2.occSNR != FREE
+		: CAN_OCCUPY;
+
+		track.r2.transition = CAN_OCCUPY
+		& track.r2.mode = FREE
+		: CAN_DISPATCH;
+
+		TRUE : track.r2.transition;
+	esac;
+
+	next(track.r2.mode) := case
+		track.r2.mode = FREE
+		& track.r2.transition = CAN_DISPATCH
+		: MARKED;
+
+		track.r2.mode = MARKED
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg7.occDown = FREE & track.seg7.occUp = FREE
+		& track.seg6.occDown = FREE & track.seg6.occUp = FREE
+		& track.seg5.occDown = FREE & track.seg5.occUp = FREE
+        & track.point2.mode = AVAILABLE
+		& track.seg7.mode = AVAILABLE
+		& track.seg6.mode = AVAILABLE
+		& track.seg5.mode = AVAILABLE
+        & TRUE
+		: ALLOCATING;
+
+		track.r2.mode = ALLOCATING
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+        & track.signal5.ACT = STOP
+		& track.signal3.ACT = STOP
+        & track.point2.ACT = NORMAL
+        & track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg7.occDown = FREE & track.seg7.occUp = FREE
+		& track.seg6.occDown = FREE & track.seg6.occUp = FREE
+		& track.seg5.occDown = FREE & track.seg5.occUp = FREE
+        & track.point2.mode = EXLOCKED
+		& track.seg7.mode = EXLOCKED
+		& track.seg6.mode = EXLOCKED
+		& track.seg5.mode = EXLOCKED
+        & TRUE
+		: LOCKED;
+
+		track.r2.mode = LOCKED
+		& track.signal5.ACT = GO
+		& track.point2.occSNR != FREE
+		: OCCUPIED;
+
+		track.r2.mode = OCCUPIED
+		& track.seg5.occDown in {HEADOCC, COMPLETETRAINOCC}
+		& track.seg5.mode = USED
+		& track.seg5.prev = RELEASED
+		: FREE;
+
+		TRUE : track.r2.mode;
+	esac;
+
+	next(track.r3.transition) := case
+		track.r3.transition = CAN_DISPATCH
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg7.occDown = FREE & track.seg7.occUp = FREE
+		& track.seg6.occDown = FREE & track.seg6.occUp = FREE
+		& track.seg5.occDown = FREE & track.seg5.occUp = FREE
+        & track.point5.mode = AVAILABLE
+		& track.point2.mode = AVAILABLE
+		& track.seg7.mode = AVAILABLE
+		& track.seg6.mode = AVAILABLE
+		& track.seg5.mode = AVAILABLE
+        & TRUE
+        & track.seg18.occDown != FREE
+		: CAN_ALLOCATE;
+
+		track.r3.transition = CAN_ALLOCATE
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.signal9.ACT = STOP
+		& track.signal3.ACT = STOP
+        & track.point5.ACT = REVERSE
+		& track.point2.ACT = REVERSE
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg7.occDown = FREE & track.seg7.occUp = FREE
+		& track.seg6.occDown = FREE & track.seg6.occUp = FREE
+		& track.seg5.occDown = FREE & track.seg5.occUp = FREE
+        & track.point5.mode = EXLOCKED
+		& track.point2.mode = EXLOCKED
+		& track.seg7.mode = EXLOCKED
+		& track.seg6.mode = EXLOCKED
+		& track.seg5.mode = EXLOCKED
+        & TRUE
+		: CAN_LOCK;
+
+		track.r3.transition = CAN_LOCK
+		& track.r3.mode = LOCKED
+		& track.signal9.ACT = GO
+		& track.point5.occSNR != FREE
+		: CAN_OCCUPY;
+
+		track.r3.transition = CAN_OCCUPY
+		& track.r3.mode = FREE
+		: CAN_DISPATCH;
+
+		TRUE : track.r3.transition;
+	esac;
+
+	next(track.r3.mode) := case
+		track.r3.mode = FREE
+		& track.r3.transition = CAN_DISPATCH
+		: MARKED;
+
+		track.r3.mode = MARKED
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg7.occDown = FREE & track.seg7.occUp = FREE
+		& track.seg6.occDown = FREE & track.seg6.occUp = FREE
+		& track.seg5.occDown = FREE & track.seg5.occUp = FREE
+        & track.point5.mode = AVAILABLE
+		& track.point2.mode = AVAILABLE
+		& track.seg7.mode = AVAILABLE
+		& track.seg6.mode = AVAILABLE
+		& track.seg5.mode = AVAILABLE
+        & TRUE
+        & track.seg18.occDown != FREE
+		: ALLOCATING;
+
+		track.r3.mode = ALLOCATING
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+		& track.r1.mode != ALLOCATING & track.r1.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+		& track.r2.mode != ALLOCATING & track.r2.mode != LOCKED
+        & track.signal9.ACT = STOP
+		& track.signal3.ACT = STOP
+        & track.point5.ACT = REVERSE
+		& track.point2.ACT = REVERSE
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.point2.occSNR = FREE & track.point2.occNS = FREE & track.point2.occRS = FREE
+		& track.seg7.occDown = FREE & track.seg7.occUp = FREE
+		& track.seg6.occDown = FREE & track.seg6.occUp = FREE
+		& track.seg5.occDown = FREE & track.seg5.occUp = FREE
+        & track.point5.mode = EXLOCKED
+		& track.point2.mode = EXLOCKED
+		& track.seg7.mode = EXLOCKED
+		& track.seg6.mode = EXLOCKED
+		& track.seg5.mode = EXLOCKED
+        & TRUE
+		: LOCKED;
+
+		track.r3.mode = LOCKED
+		& track.signal9.ACT = GO
+		& track.point5.occSNR != FREE
+		: OCCUPIED;
+
+		track.r3.mode = OCCUPIED
+		& track.seg5.occDown in {HEADOCC, COMPLETETRAINOCC}
+		& track.seg5.mode = USED
+		& track.seg5.prev = RELEASED
+		: FREE;
+
+		TRUE : track.r3.mode;
+	esac;
+
+	next(track.r4.transition) := case
+		track.r4.transition = CAN_DISPATCH
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg27.occDown = FREE & track.seg27.occUp = FREE
+		& track.seg28.occDown = FREE & track.seg28.occUp = FREE
+		& track.seg29.occDown = FREE & track.seg29.occUp = FREE
+        & track.point5.mode = AVAILABLE
+		& track.seg27.mode = AVAILABLE
+		& track.seg28.mode = AVAILABLE
+		& track.seg29.mode = AVAILABLE
+        & TRUE
+        & track.seg18.occDown != FREE
+		: CAN_ALLOCATE;
+
+		track.r4.transition = CAN_ALLOCATE
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+        & track.signal9.ACT = STOP
+		& track.signal15.ACT = STOP
+        & track.point5.ACT = NORMAL
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg27.occDown = FREE & track.seg27.occUp = FREE
+		& track.seg28.occDown = FREE & track.seg28.occUp = FREE
+		& track.seg29.occDown = FREE & track.seg29.occUp = FREE
+        & track.point5.mode = EXLOCKED
+		& track.seg27.mode = EXLOCKED
+		& track.seg28.mode = EXLOCKED
+		& track.seg29.mode = EXLOCKED
+        & TRUE
+		: CAN_LOCK;
+
+		track.r4.transition = CAN_LOCK
+		& track.r4.mode = LOCKED
+		& track.signal9.ACT = GO
+		& track.point5.occSNR != FREE
+		: CAN_OCCUPY;
+
+		track.r4.transition = CAN_OCCUPY
+		& track.r4.mode = FREE
+		: CAN_DISPATCH;
+
+		TRUE : track.r4.transition;
+	esac;
+
+	next(track.r4.mode) := case
+		track.r4.mode = FREE
+		& track.r4.transition = CAN_DISPATCH
+		: MARKED;
+
+		track.r4.mode = MARKED
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg27.occDown = FREE & track.seg27.occUp = FREE
+		& track.seg28.occDown = FREE & track.seg28.occUp = FREE
+		& track.seg29.occDown = FREE & track.seg29.occUp = FREE
+        & track.point5.mode = AVAILABLE
+		& track.seg27.mode = AVAILABLE
+		& track.seg28.mode = AVAILABLE
+		& track.seg29.mode = AVAILABLE
+        & TRUE
+        & track.seg18.occDown != FREE
+		: ALLOCATING;
+
+		track.r4.mode = ALLOCATING
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r5.mode != ALLOCATING & track.r5.mode != LOCKED
+        & track.signal9.ACT = STOP
+		& track.signal15.ACT = STOP
+        & track.point5.ACT = NORMAL
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg27.occDown = FREE & track.seg27.occUp = FREE
+		& track.seg28.occDown = FREE & track.seg28.occUp = FREE
+		& track.seg29.occDown = FREE & track.seg29.occUp = FREE
+        & track.point5.mode = EXLOCKED
+		& track.seg27.mode = EXLOCKED
+		& track.seg28.mode = EXLOCKED
+		& track.seg29.mode = EXLOCKED
+        & TRUE
+		: LOCKED;
+
+		track.r4.mode = LOCKED
+		& track.signal9.ACT = GO
+		& track.point5.occSNR != FREE
+		: OCCUPIED;
+
+		track.r4.mode = OCCUPIED
+		& track.seg29.occDown in {HEADOCC, COMPLETETRAINOCC}
+		& track.seg29.mode = USED
+		& track.seg29.prev = RELEASED
+		: FREE;
+
+		TRUE : track.r4.mode;
+	esac;
+
+	next(track.r5.transition) := case
+		track.r5.transition = CAN_DISPATCH
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg18.occDown = FREE & track.seg18.occUp = FREE
+		& track.seg19.occDown = FREE & track.seg19.occUp = FREE
+		& track.seg20.occDown = FREE & track.seg20.occUp = FREE
+        & track.point5.mode = AVAILABLE
+		& track.seg18.mode = AVAILABLE
+		& track.seg19.mode = AVAILABLE
+		& track.seg20.mode = AVAILABLE
+        & TRUE
+        & track.seg27.occUp != FREE
+		: CAN_ALLOCATE;
+
+		track.r5.transition = CAN_ALLOCATE
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+        & track.signal14.ACT = STOP
+		& track.signal10.ACT = STOP
+        & track.point5.ACT = NORMAL
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg18.occDown = FREE & track.seg18.occUp = FREE
+		& track.seg19.occDown = FREE & track.seg19.occUp = FREE
+		& track.seg20.occDown = FREE & track.seg20.occUp = FREE
+        & track.point5.mode = EXLOCKED
+		& track.seg18.mode = EXLOCKED
+		& track.seg19.mode = EXLOCKED
+		& track.seg20.mode = EXLOCKED
+        & TRUE
+		: CAN_LOCK;
+
+		track.r5.transition = CAN_LOCK
+		& track.r5.mode = LOCKED
+		& track.signal14.ACT = GO
+		& track.point5.occNS != FREE
+		: CAN_OCCUPY;
+
+		track.r5.transition = CAN_OCCUPY
+		& track.r5.mode = FREE
+		: CAN_DISPATCH;
+
+		TRUE : track.r5.transition;
+	esac;
+
+	next(track.r5.mode) := case
+		track.r5.mode = FREE
+		& track.r5.transition = CAN_DISPATCH
+		: MARKED;
+
+		track.r5.mode = MARKED
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg18.occDown = FREE & track.seg18.occUp = FREE
+		& track.seg19.occDown = FREE & track.seg19.occUp = FREE
+		& track.seg20.occDown = FREE & track.seg20.occUp = FREE
+        & track.point5.mode = AVAILABLE
+		& track.seg18.mode = AVAILABLE
+		& track.seg19.mode = AVAILABLE
+		& track.seg20.mode = AVAILABLE
+        & TRUE
+        & track.seg27.occUp != FREE
+		: ALLOCATING;
+
+		track.r5.mode = ALLOCATING
+		& track.r0.mode != ALLOCATING & track.r0.mode != LOCKED
+		& track.r3.mode != ALLOCATING & track.r3.mode != LOCKED
+		& track.r4.mode != ALLOCATING & track.r4.mode != LOCKED
+        & track.signal14.ACT = STOP
+		& track.signal10.ACT = STOP
+        & track.point5.ACT = NORMAL
+        & track.point5.occSNR = FREE & track.point5.occNS = FREE & track.point5.occRS = FREE
+		& track.seg18.occDown = FREE & track.seg18.occUp = FREE
+		& track.seg19.occDown = FREE & track.seg19.occUp = FREE
+		& track.seg20.occDown = FREE & track.seg20.occUp = FREE
+        & track.point5.mode = EXLOCKED
+		& track.seg18.mode = EXLOCKED
+		& track.seg19.mode = EXLOCKED
+		& track.seg20.mode = EXLOCKED
+        & TRUE
+		: LOCKED;
+
+		track.r5.mode = LOCKED
+		& track.signal14.ACT = GO
+		& track.point5.occNS != FREE
+		: OCCUPIED;
+
+		track.r5.mode = OCCUPIED
+		& track.seg20.occUp in {HEADOCC, COMPLETETRAINOCC}
+		& track.seg20.mode = USED
+		& track.seg20.prev = RELEASED
+		: FREE;
+
+		TRUE : track.r5.mode;
+	esac;
+
+
+-------------------------------------------------------------------------------
+-- Main Module --
+-- Routes grant states in an interlocked layout
+-------------------------------------------------------------------------------
+MODULE main
+VAR
+	iSys : InterlockingSystem;
+
+-- Fairness: all infinite executions are fair (required for non-vacuous LTL)
+FAIRNESS TRUE
+-------------------------------------------------------------------------------

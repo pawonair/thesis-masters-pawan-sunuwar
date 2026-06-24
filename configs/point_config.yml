@@ -1,0 +1,37 @@
+# SWTbahn-Lite: Point Specifications
+points:
+  - id: point1
+    seg: seg4
+    stem: seg5
+    normal: seg3
+    reverse: seg16
+  - id: point2
+    seg: seg8
+    stem: seg7
+    normal: seg9
+    reverse: point5
+  - id: point3
+    seg: seg12
+    stem: seg11
+    normal: seg1
+    reverse: point4
+  - id: point4
+    seg: seg13
+    stem: seg14
+    normal: point6
+    reverse: point3
+  - id: point5
+    seg: seg17
+    stem: seg18
+    normal: seg27
+    reverse: point2
+  - id: point6
+    seg: seg21
+    stem: seg20
+    normal: point4
+    reverse: point7
+  - id: point7
+    seg: seg22
+    stem: seg23
+    normal: seg26
+    reverse: point6

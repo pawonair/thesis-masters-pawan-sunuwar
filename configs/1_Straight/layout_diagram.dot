@@ -1,0 +1,13 @@
+digraph G {
+	rankdir=LR
+
+	"block2.down-block3.up-signal2-signal3" [label="signal2", shape=proteinstab, color=red]
+	"signal1-block3.down" [label="signal1", shape=proteinstab, color=red]
+	"signal4-block2.up" [label="signal4", shape=proteinstab, color=red]
+
+	subgraph undirected {
+		edge [dir=none]
+		"block2.down-block3.up-signal2-signal3" -> "signal1-block3.down" [label="block3", color=black]
+		"block2.down-block3.up-signal2-signal3" -> "signal4-block2.up" [label="block2", color=black]
+	}
+}

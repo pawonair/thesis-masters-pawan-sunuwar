@@ -1,0 +1,19 @@
+-------------------------------------------------------------------------------
+-- Signal Module --
+-- Represents a signal in the track
+-- Inputs:- id_in: frozen var, ID of this signal, number in range 0..15
+--          CMD_in: command for the aspect of the signal
+-------------------------------------------------------------------------------
+MODULE Signal(id_in, CMD_in)
+FROZENVAR
+	id: 0..15;
+VAR
+	ACT : {STOP, GO};
+ASSIGN
+	init(id) := id_in;
+	init(ACT) := STOP;
+	next(ACT) := case
+		ACT != CMD_in : CMD_in;
+		TRUE : ACT;
+	esac;
+-------------------------------------------------------------------------------

@@ -1,0 +1,16 @@
+-------------------------------------------------------------------------------
+-- Route Module --
+-- Represents a route in the interlocked layout
+-- Inputs:- id_in: route identifier
+-------------------------------------------------------------------------------
+MODULE Route(id_in)
+FROZENVAR
+	id : 0..74;
+VAR
+	mode : {FREE, MARKED, ALLOCATING, LOCKED, OCCUPIED};
+	transition : {CAN_DISPATCH, CAN_ALLOCATE, CAN_LOCK, CAN_OCCUPY};
+ASSIGN
+	init(id) := id_in;
+	init(mode) := FREE;
+	init(transition) := CAN_DISPATCH;
+-------------------------------------------------------------------------------

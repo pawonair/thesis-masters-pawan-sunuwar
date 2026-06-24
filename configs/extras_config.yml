@@ -1,0 +1,136 @@
+# Module Name and Block layout configuration: SWTbahnLite
+module-name: SWTbahnLite
+blocks:
+  - id: block1
+    length: 71.20cm
+    main:
+      - seg19
+    overlaps:
+      - seg18
+      - seg20
+    is_reversed: false
+    direction: bidirectional
+    signals:
+      - signal9
+      - signal10
+  - id: block2
+    length: 83.35cm
+    main:
+      - seg6
+    overlaps:
+      - seg5
+      - seg7
+    is_reversed: false
+    direction: bidirectional
+    signals:
+      - signal3
+      - signal4
+  - id: block3
+    length: 79.45cm
+    main:
+      - seg2
+    overlaps:
+      - seg1
+      - seg3
+    is_reversed: false
+    direction: bidirectional
+    signals:
+      - signal1
+      - signal2
+  - id: block4
+    length: 72.15cm
+    main:
+      - seg15
+    overlaps:
+      - seg14
+      - seg16
+    is_reversed: false
+    direction: bidirectional
+    signals:
+      - signal7
+      - signal8
+  - id: block5
+    length: 94.60cm
+    main:
+      - seg10
+    overlaps:
+      - seg9
+      - seg11
+    is_reversed: false
+    direction: bidirectional
+    signals:
+      - signal5
+      - signal6
+  - id: buffer
+    length: 17.30cm
+    main:
+      - seg26
+    is_reversed: false
+    direction: bidirectional
+    signals:
+      - signal13
+platforms:
+  - id: platform1
+    length: 70.00cm
+    main:
+      - seg28
+    overlaps:
+      - seg29
+      - seg27
+    is_reversed: false
+    direction: bidirectional
+    signals:
+      - signal15
+      - signal14
+  - id: platform2
+    length: 63.00cm
+    main:
+      - seg24
+    overlaps:
+      - seg23
+      - seg25
+    is_reversed: false
+    direction: bidirectional
+    signals:
+      - signal11
+      - signal12
+reversers:
+crossings:
+signal-types:
+  - id: entry
+    aspects:
+      - aspect_caution
+      - aspect_go
+      - aspect_stop
+  - id: exit
+    aspects:
+      - aspect_shunt
+      - aspect_caution
+      - aspect_go
+      - aspect_stop
+  - id: distant
+    aspects:
+      - aspect_caution
+      - aspect_go
+      - aspect_stop
+  - id: block
+    aspects:
+      - aspect_go
+      - aspect_stop
+  - id: shunting
+    aspects:
+      - aspect_shunt
+      - aspect_stop
+  - id: halt
+    aspects:
+      - aspect_stop
+  - id: platformlight
+    aspects:
+      - high
+      - low
+compositions:
+peripheral-types:
+  - id: onebit
+    aspects:
+      - high
+      - low
