@@ -11,7 +11,7 @@ generated layouts have been fully verified - 266 safety and liveness properties,
 
 ## Requirements
 
-- **Python 3.14,4** (uses `StrEnum` from `entity.py`) with **PyYAML** installed
+- **Python 3.14.4** (uses `StrEnum` from `entity.py`) with **PyYAML** installed
 - **NuXmV 2.1.0** (download from [nuxmv.fbk.eu](https://nuxmv.fbk.eu/download.html) and ensure `nuXmv` is on your
   `PATH`)
 
