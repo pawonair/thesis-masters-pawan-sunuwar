@@ -152,7 +152,7 @@ quit
 
 ## Verification Results
 
-All models generated with the corrected generator (6 bugs fixed) and verified with NuXmV 2.1.0.
+All models were generated with the corrected generator (6 bugs fixed) and verified with NuXmV 2.1.0.
 
 | Layout     | Lines  | Routes | Fair States | Safety (INVAR)   | Liveness (LTL)     | Total       |
 |------------|--------|--------|-------------|------------------|--------------------|-------------|
@@ -160,11 +160,11 @@ All models generated with the corrected generator (6 bugs fixed) and verified wi
 | 2_Point    | 2,311  | 4      | 77          | 11/11 TRUE       | 22/22 TRUE         | 33/33       |
 | 3_Cross    | 3,370  | 6      | 6           | 11/11 TRUE       | 37/37 TRUE         | 48/48       |
 | 4_Mini     | 3,742  | 8      | 39          | 11/11 TRUE       | 46/46 TRUE         | 57/57       |
-| 5_Fork     | 3,919  | 8      | 6           | 11/11 TRUE       | 46/46 TRUE         | 57/57       |
+| 5_Fork     | 3,927  | 8      | 6           | 11/11 TRUE       | 46/46 TRUE         | 57/57       |
 | 6_Twist    | 4,050  | 8      | 6           | 11/11 TRUE       | 48/48 TRUE         | 59/59       |
-| **Total**  |        |        |             | **66/66**        | **205/205**        | **266/266** |
-| 7_Lite     | 7,104  | 16     | -           | 11/11 TRUE (IC3) | 0 FALSE (BMC k=30) | -           |
-| Full       | 50,799 | 74     | -           | N/A              | N/A                | -           |
+| **Total**  |        |        |             | **61/61**        | **205/205**        | **266/266** |
+| 7_Lite     | 7,104  | 16     | -           | 11/11 TRUE (IC3) | 0 counterexamples (BMC k=30) | -           |
+| Full       | 59,903 | 75     | -           | N/A              | N/A                | -           |
 
 **266 properties verified, 0 failures** across layouts `1_Straight` through `6_Twist`.`
 
@@ -229,7 +229,7 @@ holding the entire route locked. Each element transitions `EXLOCKED -> USED -> A
 it.
 
 **Occupancy states:** `FREE | HEADOCC | COMPLETETRAINOCC | TAILOCC | ERROROCC`. The `ERROROCC` state represents a
-physically impossible occupancy (collision or derailment) and is asserted to never occur.
+physically impossible occupancy (collision or derailment) and is asserted never to occur.
 
 **Determinism rule:** When the predecessor segment holds `COMPLETETRAINOCC`, the train head *must* enter the current
 segment - the result is deterministically `HEADOCC`. Using a non-deterministic set `{HEADOCC, FREE}` here creates an
@@ -241,15 +241,12 @@ head-to-head collision properties and derailment conditions.
 
 **`can_lock` conflict exclusion:** NuXmV uses synchronous semantics - all transitions fire simultaneously. A point
 switch takes two steps (e.g., `NORMAL -> INTERMEDIATE -> REVERSE`). Without explicit conflict exclusion in the
-`ALLOCATING -> LOCKED` guard, two conflicting routes can both see the old point aspect in the first step and both lock
+`ALLOCATING -> LOCKED` guard, two conflicting routes can both see the old point aspect in the first step, and both lock
 simultaneously. The generator adds conflict exclusion to `can_lock` to prevent this race.
 
 ---
 
 ## Further Reading
 
-- `VERIFICATION_LOG.md` - timestamped NuXmV results, fair state counts, and bug fix descriptions for all layouts
-- `THESIS_REPORT_HANDOFF.md` - complete technical context for the thesis report (property specifications, algorithm
-  description, all bug analyses)
 - `app/README.md` - sectional release procedure and entity definitions
-- `CLAUDE.md` - correction guide for the hand-crafted model (`swt-point.smv`)
+- `web/README.md` - In-browser static React-based interface with standalone Babel for sectional interlocking system simulation.
